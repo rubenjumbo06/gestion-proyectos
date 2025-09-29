@@ -1,0 +1,1337 @@
+:root {
+    --navbar-bg: #133C55;
+    --sidebar-bg: #386FA4; 
+    --text-color: #ffffff; 
+    --cancel: #FF0000;
+    --accept: #50C100;
+}
+
+body {
+    font-family: 'Poppins' !important;
+}
+
+.box {
+    border-radius: 10px !important; /* Aumentamos el radio a 15px (puedes probar 20px o más) */
+    overflow: hidden; /* Para que el contenido respete el borde redondeado */
+}
+
+.header li{
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.box-header {
+    border-top-left-radius: 15px !important; /* Coincide con el contenedor */
+    border-top-right-radius: 15px !important;
+    border-bottom: 1px solid #ddd; /* Mantiene la línea divisoria */
+}
+
+.box-title {
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.profile-username {
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.content-header h1 {
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.content-header small {
+    font-family: 'Poppins', sans-serif !important;
+}
+
+.main-header .logo {
+    background-color: var(--navbar-bg) !important;
+    color: var(--text-color) !important;
+}
+
+.main-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    z-index: 1000;
+}
+
+.content-wrapper {
+    margin-left: 230px; /* Match sidebar width */
+    margin-top: 50px; /* Offset to match header height */
+    padding: 20px;
+    min-height: calc(100vh - 50px); /* Ensure it fills the viewport minus header */
+    transition: margin-left 0.3s ease;
+}
+
+.profile-user-img {
+    width: 100px;
+    height: 100px;
+    margin: 0 auto 10px;
+    display: block; /* Cambiamos de flex a block para evitar problemas con align-items y justify-content */
+    overflow: hidden;
+    background-color: #f0f0f0;
+    border-radius: 50%;
+    position: relative; /* Añadimos posición relativa para controlar el centrado */
+}
+
+.profile-user-img:not(:has(img)) {
+    background-color: #f0f0f0; /* Fondo solo cuando no hay imagen */
+    border: 2px solid #ddd; /* Borde sutil */
+}
+
+.profile-user-img img {
+    width: auto; /* Quitamos el 100% para que la imagen mantenga su proporción original */
+    height: 100%; /* La altura se ajusta al contenedor */
+    max-width: 100px; /* Limita el ancho máximo al tamaño del contenedor */
+    position: absolute; /* Posicionamiento absoluto dentro del contenedor */
+    top: 50%; /* Centra verticalmente */
+    left: 50%; /* Centra horizontalmente */
+    transform: translate(-50%, -50%); /* Ajusta la posición al centro exacto */
+    object-fit: cover; /* Mantiene la proporción y recorta si es necesario */
+}
+
+.profile-user-img .fa-user {
+    font-size: 60px;
+    color: #4285f4;
+}
+
+/* Desactivar el hover que cambia el color */
+.profile-user-img:hover {
+    background-color: #f0f0f0 !important; /* Mantiene el color original */
+}
+
+.navbar-static-top{
+    background-color: var(--navbar-bg) !important;
+    color: var(--text-color) !important;
+}
+
+.navbar-custom-menu {
+    display: flex !important;
+    align-items: center;
+    height: 100%;
+    padding: 0 10px;
+    position: relative; /* Para controlar el contexto */
+}
+
+.sidebar-menu li a {
+    color: var(--text-color) !important;
+}
+
+.sidebar-menu li.active a {
+    background-color: #59A5D8 !important;
+}
+
+/* Fondo y estilo base del menú */
+.main-sidebar,
+.main-sidebar .sidebar {
+    background-color: var(--sidebar-bg, #386FA4) !important;
+    color: var(--text-color, #ffffff);
+    position: fixed;
+    top: 50px; /* Match header height */
+    left: 0;
+    width: 230px;
+    height: calc(100vh - 50px);
+    z-index: 900;
+    overflow-y: auto;
+    transition: all 0.3s ease; /* Transición completa */
+}
+
+/* Asegurar que la transición incluya la posición top */
+.main-sidebar {
+    transition-property: width, top, height, background-color; /* Especificar propiedades */
+}
+
+
+/* Ajustes para sidebar retraído (modo mini) */
+.sidebar-mini.sidebar-collapse .main-sidebar {
+    width: 50px !important;
+    overflow: hidden !important; /* Evitar contenido sobrante */
+    background-color: var(--sidebar-bg, #386FA4) !important;
+    top: 5px !important; /* Move up when collapsed */
+    height: calc(100vh - 50px); /* Mantener altura consistente */
+}
+
+/* Cabecera del menú */
+.sidebar-menu > li.header {
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.85em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    padding: 12px 15px 8px;
+}
+
+/* Estilo de cada enlace del menú */
+.sidebar-menu > li > a {
+    color: var(--text-color) !important;
+    padding: 12px 15px;
+    display: flex !important; /* Force flex to ensure layout */
+    align-items: center;
+    border-radius: 8px;
+    margin: 4px 8px;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    position: relative;
+    gap: 10px;
+    font-size: 1em;
+}
+
+/* Ícono del menú */
+.sidebar-menu > li > a i {
+    width: 25px;
+    font-size: 1.1em;
+    text-align: center;
+    opacity: 0.9;
+}
+
+/* Hover: fondo más claro y leve desplazamiento */
+.sidebar-menu > li > a:hover,
+.sidebar-menu > li.active > a {
+    background-color: rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Ítem activo (destacado) */
+.sidebar-menu > li.active > a {
+    font-weight: 600;
+    border-left: 3px solid var(--text-color);
+    margin-left: 7px; /* Ajuste para compensar el borde */
+    padding-left: 12px;
+}
+
+/* Separación antes de secciones especiales (ej. SuperAdmin) */
+.sidebar-menu > li.separator-before {
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Evitar que el borde del active duplique el border-top */
+.sidebar-menu > li.separator-before.active > a {
+    border-top: none;
+}
+
+/* Ajustes para sidebar retraído (modo mini) */
+.sidebar-mini.sidebar-collapse .main-sidebar {
+    width: 50px !important;
+    overflow: hidden !important; /* Evitar contenido sobrante */
+    background-color: var(--sidebar-bg, #386FA4) !important;
+}
+
+.sidebar-mini.sidebar-collapse .sidebar-menu {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+/* Cuando sidebar está retraído, ocultar por completo la cabecera MENÚ */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li.header {
+    display: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a {
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 0px 23px !important;
+    margin: 3px 0 !important;
+    border-radius: 12px;
+    width: 44px !important;
+    height: 44px;
+    text-align: center !important;
+    position: relative;
+    top: 0 !important;
+}
+
+
+/* Forzar que los íconos se vean cuando el sidebar está colapsado */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a > i {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: auto!important; 
+    text-align: center !important;
+    color: #fff !important;
+}
+
+/* Esconder los textos en el sidebar retraído */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a span {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+.sidebar-menu > li > a span {
+    display: inline !important; /* Explicitly show span in expanded state */
+    color: var(--text-color) !important; /* Ensure text color is correct */
+}
+
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a span {
+    display: none !important;
+    pointer-events: none !important;
+}
+
+/* Hover más compacto en sidebar retraído */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a:hover {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
+/* Tooltip opcional al pasar por el ícono */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a::after {
+    content: attr(title) !important;
+    position: absolute !important;
+    left: 55px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: rgba(0, 0, 0, 0.85) !important;
+    color: #fff !important;
+    padding: 4px 10px !important;
+    border-radius: 6px !important;
+    font-size: 0.85em !important;
+    white-space: nowrap !important;
+    opacity: 0;
+    pointer-events: none !important;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 3000;
+}
+
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a:hover::after {
+    opacity: 1;
+    transform: translateY(-50%) translateX(5px);
+}
+
+/* Quitar el fondo fantasma en modo mini */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a::before {
+    content: none !important;
+    background: none !important;
+}
+
+/* 1. Desactivar el pseudo-tooltip de AdminLTE (el texto flotante lateral) */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li:hover > a > span {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* 2. Mantener tu tooltip personalizado, sin fondo transparente extra */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li > a::before {
+    content: none !important; /* elimina el rectángulo transparente de AdminLTE */
+}
+
+/* Desactivar pseudo-tooltip también en los items activos */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li.active:hover > a > span {
+    display: none !important;
+    visibility: hidden !important;
+}
+
+/* Evitar que el "hover raro" del activo interfiera */
+.sidebar-mini.sidebar-collapse .sidebar-menu > li.active > a::before {
+    content: none !important;
+    background: none !important;
+}
+
+/* Ajuste responsivo: en pantallas pequeñas, un poco más compacto */
+@media (max-width: 768px) {
+    .sidebar-menu > li > a {
+        padding: 10px 12px;
+        font-size: 0.9em;
+        gap: 8px;
+    }
+
+    .sidebar-menu > li.header {
+        padding: 10px;
+    }
+
+    .sidebar-menu > li > a i {
+        font-size: 1em;
+    }
+}
+
+/* Additional styles for project buttons and modals */
+.project-btn {
+    font-family: 'Poppins', sans-serif;
+    border-radius: 2rem;
+    padding: 0.75rem 2rem;
+    font-size: 1.5rem;
+    font-weight: 500;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center; /* Center content for rounded buttons */
+}
+
+.project-btn-primary {
+    background-color: #1a73e8;
+    color: #fff;
+    border: none;
+}
+
+.project-btn-primary:hover {
+    background-color: #1557b0;
+    transform: translateY(-1px);
+}
+
+.project-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: #fff;
+    opacity: 0.7;
+    cursor: pointer;
+    transition: opacity 0.3s ease;
+}
+
+.project-modal-close:hover {
+    opacity: 1;
+}
+
+/* Ensure modal content is consistent with project-modal class */
+.project-modal .grid .bg-light {
+    background-color: #f8f9fa !important;
+    border-radius: 0.5rem;
+    padding: 1rem;
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 768px) {
+    .project-btn {
+        font-size: 1.2rem;
+        padding: 0.5rem 1.5rem;
+    }
+
+    .project-modal-title {
+        font-size: 1.2rem;
+    }
+
+    .project-label,
+    .project-input {
+        font-size: 1.1rem;
+    }
+
+    .project-modal-body .grid .font-semibold {
+        font-size: 1rem;
+    }
+}
+
+.user-image {
+    width: 35px !important;
+    height: 35px !important;
+    border-radius: 50%;
+    margin-left: 10px;
+    object-fit: cover;
+}
+
+.user-image-dropdown {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.user-image-icon {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    background: #f0f0f0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 10px;
+}
+
+.user-menu-avatar .user-image-icon {
+    width: 65px !important;
+    height: 65px !important;
+    font-size: 24px;
+}
+
+.dropdown-toggle {
+    padding: 9px 2px !important; 
+    display: flex;
+    flex-direction: row;
+    align-items: center; 
+    justify-content: center; 
+    height: auto; 
+    min-height: 50px; 
+    position: relative;
+}
+
+.profile-user-img { margin: 0 auto 10px; width: 100px; height: 100px; }
+
+.box-body table { width: 100%; overflow: auto;}
+
+.box-body td:first-child { width: 13%; }
+
+.custom-modal {
+    border-radius: 2rem;
+    border: 2px solid #dee2e6; /* Solid border to eliminate white tips */
+    overflow: hidden;
+    outline: none; /* Remove any default outline */
+}
+
+.modal-header {
+    border-top-left-radius: 2rem;
+    border-top-right-radius: 2rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+/* Ajustes específicos para el modal de trabajadores */
+.modal.fade[id^="addTrabajadorModal"] .modal-header,
+.modal.fade[id^="editTrabajadorModal"] .modal-header,
+.modal.fade[id^="showTrabajadorModal"] .modal-header {
+    background-color: var(--sidebar-bg);
+    padding: 1.2rem 2rem 1.2rem 2rem; /* Header más pequeño */
+    position: relative;
+}
+
+.modal.fade[id^="addTrabajadorModal"] .modal-header .modal-title,
+.modal.fade[id^="editTrabajadorModal"] .modal-header .modal-title,
+.modal.fade[id^="showTrabajadorModal"] .modal-header .modal-title {
+margin: 0;
+padding-left: 0.5rem;
+}
+
+.modal.fade[id^="addTrabajadorModal"] .modal-header .close,
+.modal.fade[id^="editTrabajadorModal"] .modal-header .close,
+.modal.fade[id^="showTrabajadorModal"] .modal-header .close {
+    position: absolute;
+    right: 1rem; /* Pega la "X" a la esquina derecha */
+    top: 50%;
+    transform: translateY(-50%); /* Centra verticalmente */
+    margin: 0;
+    padding: 0.75rem;
+}
+.modal.fade[id^="addTrabajadorModal"] .modal-body,
+.modal.fade[id^="editTrabajadorModal"] .modal-body,
+.modal.fade[id^="showTrabajadorModal"] .modal-body {
+    padding: 3rem; /* Espaciado general */
+}
+
+.modal.fade[id^="addTrabajadorModal"] .form-group,
+.modal.fade[id^="editTrabajadorModal"] .form-group {
+    margin-bottom: 1.5rem; /* Espacio entre campos */
+}
+
+.modal.fade[id^="addTrabajadorModal"] .form-group label,
+.modal.fade[id^="editTrabajadorModal"] .form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.modal.fade[id^="addTrabajadorModal"] .form-control,
+.modal.fade[id^="editTrabajadorModal"] .form-control {
+    border-radius: 1rem;       /* menos redondeado si quieres */
+    padding: 0.5rem 1rem;      /* mucho más compacto */
+    border: 1px solid #ced4da;
+    width: 100%;
+}
+
+
+.modal.fade[id^="addTrabajadorModal"] .form-control:focus,
+.modal.fade[id^="editTrabajadorModal"] .form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* Layout para DNI y Teléfono */
+.modal.fade[id^="addTrabajadorModal"] .form-group.flex,
+.modal.fade[id^="editTrabajadorModal"] .form-group.flex {
+    display: flex;
+    gap: 1.5rem; /* Espacio entre DNI y Teléfono */
+    flex-wrap: wrap;
+}
+
+.modal.fade[id^="addTrabajadorModal"] .form-group.flex > div,
+.modal.fade[id^="editTrabajadorModal"] .form-group.flex > div {
+    flex: 1;
+    min-width: 150px;
+}
+
+/* Layout para Sexo y Fecha de Nacimiento */
+.modal.fade[id^="addTrabajadorModal"] .form-group:nth-child(5),
+.modal.fade[id^="editTrabajadorModal"] .form-group:nth-child(5) {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1.5rem;
+}
+
+.modal.fade[id^="addTrabajadorModal"] .form-group:nth-child(5) .flex,
+.modal.fade[id^="editTrabajadorModal"] .form-group:nth-child(5) .flex {
+    flex: 1;
+}
+
+.modal.fade[id^="addTrabajadorModal"] .form-group:nth-child(5) .form-control,
+.modal.fade[id^="editTrabajadorModal"] .form-group:nth-child(5) .form-control {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* Reducir espacio entre Cargo y botones */
+.modal.fade[id^="addTrabajadorModal"] .modal-body .form-group:last-child,
+.modal.fade[id^="editTrabajadorModal"] .modal-body .form-group:last-child {
+    margin-bottom: -3.5rem; /* Menos espacio antes de los botones */
+}
+
+.modal.fade[id^="addTrabajadorModal"] .modal-footer,
+.modal.fade[id^="editTrabajadorModal"] .modal-footer {
+    padding: 4rem 4rem;
+    gap: 1rem; /* Espacio entre botones */
+}
+
+.form-control {
+    border-radius: 2rem;
+    padding: 2rem 3rem;
+    border: 1px solid #ced4da;
+    outline: none; 
+    -webkit-appearance: none; /* Desactiva el ojo predeterminado en Webkit (Chrome, Safari) */
+    -moz-appearance: none;    /* Desactiva el ojo predeterminado en Firefox */
+    appearance: none;        
+}
+
+.form-control:focus {
+    border-color: #80bdff;
+    box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+.btn {
+    transition: all 0.3s ease;
+    border-radius: 2rem;
+    padding: 0.75rem 2rem; 
+}
+
+.btn:hover { transform: translateY(-1px); }
+
+.modal-footer { border-top: none; border-bottom: none}
+
+.modal-body { padding: 3rem; } 
+
+.hidden-input {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    top: 0;
+    left: 0;
+    cursor: pointer;
+    z-index: 1; /* Asegura que esté por encima */
+}
+
+.file-input-display {
+    border: 1px solid #ced4da;
+    background-color: #fff;
+    padding: 1rem 2rem;
+    text-align: left;
+    border-radius: 2rem;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: left;
+    justify-content: left;
+    z-index: 0; 
+}
+
+.custom-file-input .fa-image {
+    right: 20px;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+}
+#clearFile {
+    font-size: 1.2rem;
+    background: none;
+    border: none;
+    padding: 0 0.5rem;
+}
+
+#clearFile.hidden {
+    display: none;
+}
+
+.show-password {
+    position: absolute;
+    right: 2rem;
+    top: 84%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding-top: 25px;
+    z-index: 1 !important;
+}
+
+/* Nueva regla para forzar la ocultación del control nativo en todos los estados */
+.form-control[type="password"]::-webkit-password-button,
+.form-control[type="password"]::-ms-reveal {
+    display: none !important; /* Oculta el botón de visibilidad nativo */
+}
+
+.form-control[type="password"] {
+    -webkit-text-security: disc !important; /* Fuerza el estilo de puntos */
+    position: relative;
+    padding-right: 4rem; /* Ajuste para espacio del botón personalizado */
+}
+
+label[for="img"] {
+    display: block;
+    text-align: left;
+    margin-bottom: 0.5rem;
+}
+
+.dropdown-menu {
+    background-color: #ffffff;
+    border-radius: 10px !important;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15); /* Sombra más suave y extendida */
+    width: 400px; /* Ancho mayor como pediste */
+    padding: 15px;
+    padding-top: 5px !important;
+    padding-bottom: 8px !important;
+    min-height: 130px; /* Altura mínima */
+    position: absolute; /* Para que salga fuera del header */
+    top: 120%; /* Debajo del header */
+    right: 20px; /* Alineado a la derecha */
+    z-index: 999; /* Sobre otros elementos */
+    border: 2px solid #e0e0e0; /* Borde más fino y elegante */
+    transition: transform 0.3s ease, opacity 0.3s ease; /* Animación suave */
+}
+
+.dropdown-menu.show {
+    opacity: 1; /* Se muestra al abrir */
+    transform: translateY(0); /* Se alinea correctamente */
+}
+
+.user-menu-content {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 15px;
+    padding: 0 20px;
+    padding-top: 10px;
+    transition: background-color 0.3s ease;
+}
+
+.user-menu-content:hover {
+    background-color: #f8f9fa; /* Efecto hover sutil */
+}
+
+.user-menu-avatar {
+    flex-shrink: 0;
+}
+
+.user-menu-info {
+    flex-grow: 1;
+    padding-bottom: 5px;
+    text-align: left;
+}
+
+.user-name {
+    color: #333;
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+}
+
+.user-email {
+    color: #666;
+    font-size: 12px;
+    margin: 0;
+    margin-top: 2px;
+}
+
+.user-menu-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    padding: 0 20px 10px;
+}
+
+.user-menu-actions .btn {
+    background-color: #f8f9fa;
+    color: #333;
+    font-weight: bold;
+    padding: 8px 5px;
+    border-radius: 20px;
+    border: 1px solid #4285f4;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+    width: 45%;
+    text-align: center;
+}
+
+.user-menu-actions .btn:hover {
+    background-color: #e9ecef;
+    transform: translateY(-2px); /* Elevación al hover */
+    box-shadow: 0 2px 4px #02000a58; /* Sombra para profundidad */
+}
+
+.zpend-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed; /* Allow dynamic column sizing */
+}
+
+.zpend-table th,
+.zpend-table td {
+    padding: 8px;
+    text-align: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.zpend-table th {
+    background-color: #f4f4f4;
+    position: relative;
+    cursor: col-resize; /* Indicate resizable columns */
+}
+
+.zpend-table th::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 5px;
+    height: 100%;
+    cursor: col-resize;
+}
+
+.zpend-table td.action-buttons {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+}
+
+.zpend-table td.action-buttons a,
+.zpend-table td.action-buttons button {
+    padding: 1rem 1rem;
+    font-size: 1rem;
+    line-height: 1.2;
+    min-width: 30px;
+}
+
+.btn-xs {
+    padding: 0.5rem 0.5rem;
+    font-size: 5rem;
+    border-radius: 0.5rem;
+}
+
+/* Estilos para el switch */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 55px;
+    height: 30px;
+}
+
+.switch input {
+    display: none;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 22px;
+    width: 22px;
+    left: 2px;
+    bottom: 4px;
+    background-color: white;
+    -webkit-transition: .4s;
+    transition: .4s;
+}
+
+input:checked + .slider {
+    background-color: #2196F3;
+}
+
+input:focus + .slider {
+    box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+    -webkit-transform: translateX(26px);
+    -ms-transform: translateX(26px);
+    transform: translateX(26px);
+}
+
+.slider.round {
+    border-radius: 20px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.activity-list {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.activity-list li {
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#load-more {
+    font-size: 14px;
+}
+/* Project-specific styles */
+.project-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #202124;
+    margin: 0;
+}
+
+.project-btn {
+    font-family: 'Poppins', sans-serif;
+    border-radius: 2rem;
+    padding: 0.75rem 2rem;
+    font-size: 1.5rem;
+    font-weight: 500;
+    transition: background-color 0.3s ease, transform 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+}
+
+.project-btn-primary {
+    background-color: #1a73e8;
+    color: #fff;
+    border: none;
+}
+
+.project-btn-primary:hover {
+    background-color: #1557b0;
+    transform: translateY(-1px);
+}
+
+.project-btn-default {
+    background-color: #f8f9fa;
+    color: #333;
+    border: 1px solid #ced4da;
+}
+
+.project-btn-default:hover {
+    background-color: #e0e0e0;
+    transform: translateY(-1px);
+}
+
+.project-alert {
+    font-family: 'Poppins', sans-serif;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 0.5rem;
+    position: relative;
+}
+
+.project-alert-success {
+    background-color: #e6f4ea;
+    border-left: 4px solid var(--accept);
+    color: #2e7d32;
+}
+
+.project-alert-danger {
+    background-color: #fce8e6;
+    border-left: 4px solid var(--cancel);
+    color: #d32f2f;
+}
+
+.project-alert-close {
+    position: absolute;
+    right: 0.75rem;
+    top: 0.75rem;
+    font-size: 1.25rem;
+    color: #333;
+    opacity: 0.6;
+    cursor: pointer;
+}
+
+.project-alert-close:hover {
+    opacity: 1;
+}
+
+.project-box {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 0.5rem;
+    transition: box-shadow 0.3s ease, transform 0.3s ease;
+    position: relative;
+    min-height: 50px; /* Mantén o ajusta la altura mínima si lo deseas */
+    display: flex; /* Usa Flexbox para centrar verticalmente */
+    flex-direction: column; /* Apila los elementos verticalmente */
+    justify-content: center; /* Centra verticalmente el contenido */
+    align-items: flex-start; /* Alinea los elementos a la izquierda horizontalmente */
+}
+
+.project-box:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.project-card-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    text-decoration: none;
+    color: #202124;
+}
+
+.project-icon {
+    font-size: 1.5rem;
+    color: #f4b400;
+}
+
+.project-name {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: #202124;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.project-context-menu {
+    position: absolute;
+    top: 50%; /* Centra verticalmente respecto a la altura de .project-box */
+    right: 1rem;
+    transform: translateY(-50%); /* Ajusta la posición para centrar perfectamente */
+}
+
+.project-context-btn {
+    background: none;
+    border: none;
+    color: #5f6368;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.3s ease;
+    display: flex; /* Usa Flexbox para centrar el ícono */
+    align-items: center; /* Centra el ícono verticalmente */
+    justify-content: center; /* Centra horizontalmente */
+    width: 1.5rem; /* Define un ancho fijo para evitar movimientos */
+    height: 1.5rem; /* Define una altura fijo para evitar movimientos */
+}
+
+.project-context-btn:hover {
+    color: #202124;
+}
+
+.project-dropdown {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    width: 160px;
+    padding: 0.5rem 0;
+    z-index: 1000;
+    position: absolute;
+    top: 100%; /* Posiciona el menú justo debajo del botón */
+    right: 0; /* Alinea a la derecha del botón */
+    transform: translateY(0); /* Elimina cualquier transformación que pueda moverlo */
+    transition: none; /* Elimina transiciones para evitar movimientos */
+}
+
+.project-dropdown-item {
+    display: block;
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    color: #202124;
+    padding: 0.5rem 1rem;
+    text-decoration: none;
+    transition: background-color 0.3s ease;
+}
+
+.project-dropdown-item:hover {
+    background-color: #f1f3f4;
+}
+
+.project-dropdown-danger {
+    color: #d32f2f;
+    padding: 0.5rem 1rem; /* Asegura que el padding sea consistente */
+}
+
+.project-dropdown-danger:hover {
+    background-color: #d32f2f; /* Fondo rojo completo al hover */
+    color: #fff; /* Texto blanco para contraste */
+}
+
+.project-modal {
+    border-radius: 2rem;
+    border: 2px solid #dee2e6;
+    overflow: hidden;
+    max-height: 90vh;
+    position: fixed;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
+    width: 90%;
+    max-width: 600px;
+    z-index: 1050;
+    background-color: #fff;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+    display: flex;
+    flex-direction: column;
+    min-height: 400px;
+}
+
+.modal-dialog {
+    margin: 0 !important;
+    transform: translate(-50%, -50%) !important;
+    top: 50% !important;
+    left: 50% !important;
+    position: fixed !important;
+}
+
+.project-modal-header {
+    background-color: var(--sidebar-bg);
+    padding: 1.2rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top-left-radius: 2rem;
+    border-top-right-radius: 2rem;
+}
+
+.project-modal-title {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #fff;
+    margin: 0;
+}
+
+.project-modal-close:hover {
+    opacity: 1;
+}
+
+.project-modal-body {
+    padding: 3rem;
+    height: 600px;
+    overflow-y: auto;
+    background-color: #fff;
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+.project-form-group {
+    margin-bottom: 1.5rem;
+}
+
+.project-label {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1.35rem;
+    font-weight: 600;
+    color: #202124;
+    margin-bottom: 0.5rem;
+    display: block;
+}
+
+.project-input {
+    font-family: 'Poppins', sans-serif;
+    border-radius: 2rem;
+    padding: 0.75rem 1.5rem;
+    border: 1px solid #ced4da;
+    width: 100%;
+    font-size: 1.35rem;
+    transition: border-color 0.3s ease;
+}
+
+.project-input:focus {
+    border-color: #1a73e8;
+    box-shadow: 0 0 0 0.2rem rgba(26, 115, 232, 0.25);
+    outline: none;
+}
+
+.project-error {
+    font-family: 'Poppins', sans-serif;
+    font-size: 1rem;
+    color: #d32f2f;
+    display: block;
+    margin-top: 0.3rem;
+}
+
+.project-flex {
+    display: flex;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.project-flex-item {
+    flex: 1;
+    min-width: 150px;
+}
+
+.project-modal-footer {
+    padding: 1.5rem 2rem;
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+    border-top: none;
+    background-color: #fff;
+    position: relative;
+    bottom: 0;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    }
+
+    .project-btn {
+        width: 100%;
+        text-align: center;
+    }
+
+    .project-modal-body {
+        padding: 2rem;
+        height: 300px;
+    }
+
+    .project-modal {
+        width: 95%;
+        max-width: 500px;
+    }
+}
+#modalDepartamentosEdit .modal-body {
+    padding-bottom: 0 !important;
+}
+
+#modalDepartamentosEdit .modal-footer {
+    margin-top: 0 !important;
+    padding-top: 0.25rem; /* ajusta si quieres que no esté pegadísimo */
+}
+/* Elimina el espacio que Bootstrap da a los inputs */
+.form-control {
+    margin-bottom: 0 !important;
+}
+
+/* Elimina espacio del label */
+.mb-0 label {
+    margin-bottom: 0 !important;
+}
+
+/* Si los botones tienen margen arriba, se lo quitas o reduces */
+.modal-footer .btn {
+    margin-top: 0 !important;
+}
+
+
+@media (max-width: 991px) {
+    .main-header {
+        height: 50px; /* Fixed height for the row */
+        padding: 10px;
+        display: flex;
+        flex-direction: row; /* Horizontal alignment */
+        align-items: center; /* Vertically center items */
+        justify-content: space-between; /* Space between logo, hamburger, and user image */
+        position: relative;
+    }
+
+    .main-header .logo {
+        position: relative;
+        right: 80px;
+    }
+    
+    .sidebar-toggle {
+        color: var(--text-color);
+        font-size: 1.5rem;
+        cursor: pointer;
+        position: relative;
+        left: 260px;
+    }
+
+    .sidebar-toggle:hover {
+        background-color: #59A5D8 !important;
+    }
+
+    .navbar-custom-menu {
+        position: relative;
+        left: 8px;
+        top: 2px;
+        margin-right: 0; /* Ensure it stays on the right */
+        padding: 0;
+    }
+
+    .navbar-custom-menu:hover {
+        background-color: #59A5D8 !important;
+    }
+
+    .navbar-custom-menu:hover .dropdown-toggle {
+        background-color: #59A5D8 !important;
+    }
+
+    .user-image {
+        margin: 10px;
+        transition: transform 0.3 ease;
+        position: relative; /* Ensure relative positioning */
+        top: 10px; /* Additional top offset */
+        right: 4px;
+        display: inline-block;
+        width: 35px;
+        height: 35px;
+    }
+
+    .user-image:hover{
+        background-color: #59A5D8 !important;
+    }
+    
+    .dropdown-toggle {
+        padding: 5px !important;
+        min-height: 40px;
+        display: flex;
+        align-items: flex-start;
+    }
+
+    .user-menu-actions .btn {
+        background-color: #f8f9fa !important;
+        color: #333 !important;
+        font-weight: bold;
+        padding: 8px 10px;
+        border-radius: 8px;
+        border: 1px solid #ddd !important;
+        text-decoration: none;
+        transition: 0.3s ease !important;
+        width: 45%;
+        text-align: center;
+    }
+
+    .user-menu-actions .btn:hover {
+        background-color: #e9ecef !important;
+    }
+
+    .dropdown-menu {
+        background-color: white;
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 7px 15px rgba(0, 0, 0, 0.2);
+        width: 300px;
+        min-height: 100px;
+        position: absolute;
+        top: 109%; /* Position below the row */
+        right: 0;
+        z-index: 999;
+        transform: translateY(0);
+        border: 3px solid;
+    }
+}
