@@ -195,13 +195,25 @@
 
     <!-- OTRAS PESTAÑAS (contenido ya existente) -->
     <div id="materiales-tab" class="tab-content hidden">
-        @include('admin.proyectos.materiales', ['proyecto' => $proyecto, 'materiales' => $materiales])
+        @include('admin.proyectos.materiales', [
+            'proyecto' => $proyecto,
+            'materiales' => $materiales,
+            'budgetMaterials' => $budgetMaterials ?? null,
+        ])
     </div>
     <div id="planilla" class="tab-content hidden">
-        @include('admin.proyectos.planilla', ['proyecto' => $proyecto])
+        @include('admin.proyectos.planilla', [
+            'proyecto' => $proyecto,
+            'budgetPersonal' => $budgetPersonal ?? null,
+            'trabajadoresPreload' => $trabajadoresPreload ?? collect(),
+        ])
     </div>
     <div id="gastos_extra" class="tab-content hidden">
-        @include('admin.proyectos.gastos_extra', ['proyecto' => $proyecto, 'gastosExtra' => $gastosExtra])
+        @include('admin.proyectos.gastos_extra', [
+            'proyecto' => $proyecto,
+            'gastosExtra' => $gastosExtra,
+            'budgetServicios' => $budgetServicios ?? null,
+        ])
     </div>
     <div id="egresos" class="tab-content hidden">
         @include('admin.proyectos.egresos', ['proyecto' => $proyecto])
@@ -618,6 +630,16 @@
         window.closeModal = function(id) {
             const modal = document.getElementById(id);
             modal.classList.add('hidden');
+        }
+
+        // Stub to avoid inline onclick errors if partial script not yet executed
+        window.openPlanillaModal = window.openPlanillaModal || function() {
+            const modal = document.getElementById('trabajadores-modal');
+            if (modal && typeof $ === 'function') {
+                $('#trabajadores-modal').modal('show');
+            } else {
+                console.warn('openPlanillaModal: modal not found or jQuery not loaded yet');
+            }
         }
 
         // ---------- Calendario del Proyecto ----------

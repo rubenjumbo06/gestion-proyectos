@@ -1,5 +1,19 @@
 @props(['proyecto', 'gastosExtra'])
 
+<!-- Presupuesto Servicios -->
+<div class="box box-success">
+    <div class="box-header with-border">
+        <h3 class="box-title">Presupuesto Servicios</h3>
+    </div>
+    <div class="box-body">
+        <div class="row">
+            <div class="col-md-4"><p><strong>Asignado:</strong> S/<span id="srv-assigned">{{ isset($budgetServicios['assigned']) ? number_format($budgetServicios['assigned'], 2) : '0.00' }}</span></p></div>
+            <div class="col-md-4"><p><strong>Gastado (Servicios + Extras):</strong> S/<span id="srv-spent">{{ isset($budgetServicios['spent']) ? number_format($budgetServicios['spent'], 2) : '0.00' }}</span></p></div>
+            <div class="col-md-4"><p><strong>Restante:</strong> S/<span id="srv-remaining">{{ isset($budgetServicios['remaining']) ? number_format($budgetServicios['remaining'], 2) : '0.00' }}</span></p></div>
+        </div>
+    </div>
+ </div>
+
 <!-- Resumen de gastos extras -->
 <div class="box box-info">
     <div class="box-header with-border">
@@ -231,9 +245,77 @@
 </div>
 
 <script>
+// Toast utility (define if not already present)
+if (typeof window.showToast !== 'function') {
+    (function(){
+        function getToastContainer(){
+            let c = document.getElementById('toast-container');
+            if (!c){
+                c = document.createElement('div');
+                c.id = 'toast-container';
+                c.style.position = 'fixed';
+                c.style.top = '16px';
+                c.style.right = '16px';
+                c.style.zIndex = '9999';
+                c.style.display = 'flex';
+                c.style.flexDirection = 'column';
+                c.style.gap = '8px';
+                document.body.appendChild(c);
+            }
+            return c;
+        }
+        window.showToast = function(message, type = 'info', duration = 5000){
+            const container = getToastContainer();
+            const toast = document.createElement('div');
+            const cls = type === 'error' ? 'alert-danger' : (type === 'success' ? 'alert-success' : (type === 'warning' ? 'alert-warning' : 'alert-info'));
+            toast.className = `alert ${cls}`;
+            toast.style.minWidth = '280px';
+            toast.style.maxWidth = '420px';
+            toast.style.margin = '0';
+            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            toast.style.opacity = '1';
+            toast.setAttribute('role', 'alert');
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'opacity 300ms ease';
+                toast.style.opacity = '0';
+                setTimeout(() => { toast.remove(); }, 320);
+            }, Math.max(1000, duration));
+        }
+    })();
+}
+
+async function getBudgetServicesSummary(){
+    const res = await fetch(`/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) throw new Error('No se pudo obtener presupuesto');
+    const data = await res.json();
+    return data && data.services ? data.services : { assigned:0, spent:0, remaining:0 };
+}
+
+// Presupuesto: Servicios (incluye servicios + gastos extra)
+async function refreshBudgetServices(){
+    try{
+        const res = await fetch(`/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if(!res.ok) throw new Error('No se pudo obtener presupuesto');
+        const data = await res.json();
+        const s = data.services || { assigned:0, spent:0, remaining:0 };
+        const aEl = document.getElementById('srv-assigned');
+        const sEl = document.getElementById('srv-spent');
+        const rEl = document.getElementById('srv-remaining');
+        if(aEl) aEl.textContent = Number(s.assigned).toFixed(2);
+        if(sEl) sEl.textContent = Number(s.spent).toFixed(2);
+        if(rEl) rEl.textContent = Number(s.remaining).toFixed(2);
+    }catch(e){ console.error(e); }
+}
+
+// Inicializar presupuesto al cargar el fragmento
+refreshBudgetServices();
+
 // Namespace para evitar conflictos globales
 const GastosExtras = {
     isInitialized: false,
+    currentOriginal: { ali: 0, hos: 0, pas: 0 },
 
     // Inicializar el módulo
     init() {
@@ -327,6 +409,28 @@ const GastosExtras = {
 
         if (!modal) {
             console.error('Error: No se encontró el elemento #gastos-modal');
+            return;
+        }
+
+        // Pre-chequeo de presupuesto para creación
+        if (!gastoId) {
+            getBudgetServicesSummary().then(s => {
+                if (s.remaining <= 0) {
+                    showToast('Se alcanzó el límite del presupuesto de Servicios.', 'error', 6000);
+                    throw new Error('BudgetExceeded');
+                }
+                if (s.assigned > 0 && s.remaining <= s.assigned * 0.2) {
+                    showToast('Aviso: queda 20% o menos del presupuesto de Servicios.', 'warning', 6000);
+                }
+            }).then(() => {
+                // Limpiar estado anterior y abrir
+                this.clearModalState();
+                const isEdit = false;
+                gastoIdInput.value = '';
+                title.textContent = 'Agregar Gasto Extra';
+                $(modal).modal('show');
+                setTimeout(() => { document.getElementById('alimentacion_general').focus(); }, 100);
+            }).catch(e => { if (e && e.message === 'BudgetExceeded') return; });
             return;
         }
 
@@ -453,9 +557,13 @@ const GastosExtras = {
             
             // Cargar datos en el formulario
             document.getElementById('gasto_id').value = data.id_gasto;
-            document.getElementById('alimentacion_general').value = data.alimentacion_general || 0;
-            document.getElementById('hospedaje').value = data.hospedaje || 0;
-            document.getElementById('pasajes').value = data.pasajes || 0;
+            const ali = parseFloat(data.alimentacion_general) || 0;
+            const hos = parseFloat(data.hospedaje) || 0;
+            const pas = parseFloat(data.pasajes) || 0;
+            document.getElementById('alimentacion_general').value = ali;
+            document.getElementById('hospedaje').value = hos;
+            document.getElementById('pasajes').value = pas;
+            this.currentOriginal = { ali, hos, pas };
             
             // Habilitar inputs
             inputs.forEach(input => {
@@ -516,26 +624,46 @@ const GastosExtras = {
             pasajes: parseFloat(pasajes) || 0
         };
 
-        const url = gastoId
-            ? '{{ route("proyectos.gastos-extra.update", [$proyecto->id_proyecto, "_id_"]) }}'.replace('_id_', gastoId)
-            : '{{ route("proyectos.gastos-extra.store", $proyecto->id_proyecto) }}';
-        const method = gastoId ? 'PUT' : 'POST';
-
-        console.log('Operación:', gastoId ? 'ACTUALIZAR' : 'CREAR');
-        console.log('URL:', url);
-        console.log('Método:', method);
-        console.log('Datos a enviar:', data);
-
-        fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            body: JSON.stringify(data)
-        })
-        .then(response => {
+        // Pre-chequeo presupuesto (delta si edita, incremento si crea)
+        getBudgetServicesSummary().then(s => {
+            const totalNuevo = (data.alimentacion_general + data.hospedaje + data.pasajes);
+            if (gastoId) {
+                const totalOriginal = (this.currentOriginal.ali || 0) + (this.currentOriginal.hos || 0) + (this.currentOriginal.pas || 0);
+                const delta = totalNuevo - totalOriginal;
+                if (delta > (s.remaining || 0) + 1e-6) {
+                    errorMessage.textContent = 'No se puede actualizar: se supera el límite del presupuesto de Servicios.';
+                    errorMessage.classList.remove('hidden');
+                    throw new Error('BudgetExceeded');
+                }
+                if ((s.assigned || 0) > 0 && (s.remaining - delta) <= (s.assigned * 0.2)) {
+                    showToast('Aviso: con esta acción, quedarás a menos del 20% del presupuesto de Servicios.', 'warning', 6000);
+                }
+            } else {
+                if (totalNuevo > (s.remaining || 0) + 1e-6) {
+                    errorMessage.textContent = 'No se puede agregar: se supera el límite del presupuesto de Servicios.';
+                    errorMessage.classList.remove('hidden');
+                    throw new Error('BudgetExceeded');
+                }
+                if ((s.assigned || 0) > 0 && (s.remaining - totalNuevo) <= (s.assigned * 0.2)) {
+                    showToast('Aviso: con este registro, quedarás a menos del 20% del presupuesto de Servicios.', 'warning', 6000);
+                }
+            }
+        }).then(() => {
+            // continuar con fetch
+            const url = gastoId
+                ? '{{ route("proyectos.gastos-extra.update", [$proyecto->id_proyecto, "_id_"]) }}'.replace('_id_', gastoId)
+                : '{{ route("proyectos.gastos-extra.store", $proyecto->id_proyecto) }}';
+            const method = gastoId ? 'PUT' : 'POST';
+            return fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(data)
+            })
+        }).then(response => {
             console.log('Respuesta del servidor:', response);
             if (!response.ok) {
                 return response.json().then(errorData => {
@@ -564,11 +692,13 @@ const GastosExtras = {
             }
 
             this.updateResumen();
+            refreshBudgetServices();
             this.closeModal();
-            alert(payload.message || 'Guardado correctamente');
+            showToast((payload && payload.message) || 'Guardado correctamente', 'success', 5000);
         })
         .catch(error => {
             console.error('Error:', error);
+            if (error && error.message === 'BudgetExceeded') return;
             errorMessage.textContent = error.message;
             errorMessage.classList.remove('hidden');
         });
@@ -697,8 +827,9 @@ const GastosExtras = {
                 table.appendChild(emptyRow);
             }
             this.updateResumen();
+            refreshBudgetServices();
             $('#confirm-delete-modal').modal('hide');
-            alert(data.message);
+            showToast((data && data.message) || 'Eliminado correctamente', 'success', 5000);
         })
         .catch(error => {
             console.error('Error:', error);

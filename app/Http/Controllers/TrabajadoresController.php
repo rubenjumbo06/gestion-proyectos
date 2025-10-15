@@ -139,19 +139,38 @@ class TrabajadoresController extends Controller
     public function list(Request $request)
     {
         try {
-            $proyecto_id = $request->query('proyecto_id');
-            $trabajadores = Trabajadores::select('id_trabajadores', 'nombre_trab', 'apellido_trab', 'dni_trab')
+            $proyecto_id = (int) $request->query('proyecto_id', 0);
+            $baseQuery = Trabajadores::select('id_trabajadores', 'nombre_trab', 'apellido_trab', 'dni_trab')
                 ->whereNull('deleted_at')
-                ->when($proyecto_id, function ($query) use ($proyecto_id) {
-                    $query->whereNotIn('id_trabajadores', function ($subQuery) use ($proyecto_id) {
-                        $subQuery->select('id_trabajadores')
+                ->orderBy('nombre_trab')
+                ->orderBy('apellido_trab');
+
+            $trabajadores = (clone $baseQuery)
+                ->when($proyecto_id > 0, function ($query) use ($proyecto_id) {
+                    // Excluir trabajadores ya asignados al proyecto (sin depender de columna deleted_at en planilla)
+                    $query->whereNotIn('id_trabajadores', function ($sub) use ($proyecto_id) {
+                        $sub->select('id_trabajadores')
                             ->from('planilla')
-                            ->where('id_proyecto', $proyecto_id)
-                            ->whereNull('deleted_at');
+                            ->where('id_proyecto', $proyecto_id);
                     });
                 })
                 ->take(100)
                 ->get();
+
+            if ($trabajadores->isEmpty()) {
+                // Fallback: devolver todos los trabajadores, para que el front permita seleccionar
+                $trabajadores = (clone $baseQuery)->take(100)->get();
+                Log::warning('TrabajadoresController@list: lista vacía con filtro, devolviendo todos', [
+                    'proyecto_id' => $proyecto_id,
+                    'fallback_count' => $trabajadores->count()
+                ]);
+            } else {
+                Log::info('TrabajadoresController@list', [
+                    'proyecto_id' => $proyecto_id,
+                    'count' => $trabajadores->count()
+                ]);
+            }
+
             return response()->json($trabajadores);
         } catch (\Exception $e) {
             Log::error('Error al listar trabajadores: ' . $e->getMessage(), [

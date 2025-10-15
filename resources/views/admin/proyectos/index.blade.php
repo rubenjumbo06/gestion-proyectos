@@ -145,15 +145,22 @@
                             <span class="project-error" id="cantidad_trabajadores_error"></span>
                         </div>
                         <div class="project-flex-item">
-                            <label for="sueldo" class="project-label">Sueldo</label>
-                            <input type="number" name="sueldo" id="sueldo" class="project-input project-number-only" value="{{ old('sueldo') }}" step="0.01" min="0" required placeholder="Ingresa el sueldo">
-                            <span class="project-error" id="sueldo_error"></span>
+                            <label for="monto_material" class="project-label">Monto para Materiales</label>
+                            <input type="number" name="monto_material" id="monto_material" class="project-input project-number-only" value="{{ old('monto_material') }}" step="0.01" min="0" required placeholder="Ingresa el monto para materiales">
+                            <span class="project-error" id="monto_material_error"></span>
                         </div>
                     </div>
-                    <div class="project-form-group">
-                        <label for="monto" class="project-label">Monto</label>
-                        <input type="number" name="monto" id="monto" class="project-input project-number-only" value="{{ old('monto') }}" step="0.01" min="0" required placeholder="Ingresa el monto">
-                        <span class="project-error" id="monto_error"></span>
+                    <div class="project-form-group project-flex">
+                        <div class="project-flex-item">
+                            <label for="monto_operativos" class="project-label">Monto para Personal</label>
+                            <input type="number" name="monto_operativos" id="monto_operativos" class="project-input project-number-only" value="{{ old('monto_operativos') }}" step="0.01" min="0" required placeholder="Ingresa el monto para personal">
+                            <span class="project-error" id="monto_operativos_error"></span>
+                        </div>
+                        <div class="project-flex-item">
+                            <label for="monto_servicios" class="project-label">Monto para Servicios</label>
+                            <input type="number" name="monto_servicios" id="monto_servicios" class="project-input project-number-only" value="{{ old('monto_servicios') }}" step="0.01" min="0" required placeholder="Ingresa el monto para servicios">
+                            <span class="project-error" id="monto_servicios_error"></span>
+                        </div>
                     </div>
                     <div class="project-form-group project-flex">
                         <div class="project-flex-item">
@@ -303,11 +310,15 @@
                 pattern: /^\d+$/,
                 error: 'Debe ser un número entero no negativo'
             },
-            sueldo: {
+            monto_material: {
                 pattern: /^\d+(\.\d{1,2})?$/,
                 error: 'Debe ser un número con hasta 2 decimales'
             },
-            monto: {
+            monto_operativos: {
+                pattern: /^\d+(\.\d{1,2})?$/,
+                error: 'Debe ser un número con hasta 2 decimales'
+            },
+            monto_servicios: {
                 pattern: /^\d+(\.\d{1,2})?$/,
                 error: 'Debe ser un número con hasta 2 decimales'
             },
@@ -321,17 +332,24 @@
 
         Object.keys(inputs).forEach(field => {
             const input = form.querySelector(`[name="${field}"]`);
-            const errorElement = form.querySelector(`#${field}_${formId.includes('edit') ? formId.split('editProyectoForm')[1] + '_' : ''}error`);
-            errorElement.textContent = '';
+            // Resolver el elemento de error de forma robusta para add/edit
+            const fallbackError = form.querySelector(`#${field}_error`);
+            const computedId = `#${field}_${formId.includes('edit') ? formId.split('editProyectoForm')[1] + '_' : ''}error`;
+            const errorElement = form.querySelector(computedId) || fallbackError;
+            if (errorElement) errorElement.textContent = '';
+
+            if (!input) {
+                return; // Campo no existe en este formulario
+            }
 
             if (field === 'fecha_inicio') {
                 if (!inputs[field].check(input)) {
-                    errorElement.textContent = inputs[field].error;
+                    if (errorElement) errorElement.textContent = inputs[field].error;
                     isValid = false;
                 }
             } else {
-                if (!inputs[field].pattern.test(input.value)) {
-                    errorElement.textContent = inputs[field].error;
+                    if (!inputs[field].pattern.test(input.value)) {
+                    if (errorElement) errorElement.textContent = inputs[field].error;
                     isValid = false;
                 }
             }

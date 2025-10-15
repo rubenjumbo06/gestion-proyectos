@@ -110,6 +110,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('balance', [ProyectosController::class, 'getBalanceData']);
         Route::get('calendar', [ProyectosController::class, 'getCalendarData']);
         Route::get('calendar/day/{date}', [ProyectosController::class, 'getCalendarDayDetails']);
+        Route::get('budgets', [ProyectosController::class, 'getBudgetSummary'])->name('proyectos.budgets');
     });
 
     Route::get('/user-activities', function (Illuminate\Http\Request $request) {

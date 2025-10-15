@@ -278,8 +278,9 @@ class ProyectosController extends Controller
             'cliente_proyecto' => 'required|string|max:100',
             'descripcion_proyecto' => 'nullable|string',
             'cantidad_trabajadores' => 'required|integer|min:0',
-            'sueldo' => 'required|numeric|min:0',
-            'monto' => 'required|numeric|min:0',
+            'monto_material' => 'required|numeric|min:0',
+            'monto_operativos' => 'required|numeric|min:0',
+            'monto_servicios' => 'required|numeric|min:0',
             'fecha_inicio' => 'required|date',
             'fecha_fin_aprox' => 'nullable|date|after_or_equal:fecha_inicio',
         ]);
@@ -290,29 +291,15 @@ class ProyectosController extends Controller
                 'cliente_proyecto',
                 'descripcion_proyecto',
                 'cantidad_trabajadores',
-                'sueldo',
-                'monto',
-                'fecha_inicio',
-                'fecha_fin_aprox',
             ]),
-            ['user_id' => auth()->id()]
+            [
+                'user_id' => auth()->id(),
+                // Ya no se solicita 'sueldo' en el formulario; se establece a 0 por defecto
+                'sueldo' => 0,
+            ]
         ));
 
-        // Crear registros relacionados en montopr y fechapr si es necesario
-        DB::table('montopr')->insert([
-            'proyecto_id' => $proyecto->id_proyecto,
-            'monto_inicial' => $request->monto,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
-
-        DB::table('fechapr')->insert([
-            'proyecto_id' => $proyecto->id_proyecto,
-            'fecha_inicio' => $request->fecha_inicio,
-            'fecha_fin_aprox' => $request->fecha_fin_aprox,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        // Las inserciones en 'fechapr', 'montopr' y 'montos_apartados' se manejan en ProyectosObserver@created
 
         return redirect()->route('proyectos.index')->with('success', '¡Proyecto creado con éxito!');
     } catch (ValidationException $e) {
@@ -414,7 +401,61 @@ class ProyectosController extends Controller
             'memory' => memory_get_usage() / 1024 / 1024 . ' MB'
         ]);
 
-        return view('admin.proyectos.show', compact('proyecto', 'planilla', 'gastosExtra', 'materiales', 'servicios'));
+        // Presupuestos por apartado (montos asignados y gastados)
+        $apartado = DB::table('montos_apartados')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->first();
+
+        $materialesGastado = (float) Materiales::where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->sum('monto_mat');
+        $personalGastado = (float) DB::table('planilla')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador),0) AS total')
+            ->value('total');
+        $serviciosGastado = (float) Servicio::where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->sum('monto');
+        // Gastos extras sumados a servicios
+        $gExtraAli = (float) GastosExtra::where('id_proyecto', $proyecto->id_proyecto)->whereNull('deleted_at')->sum('alimentacion_general');
+        $gExtraHos = (float) GastosExtra::where('id_proyecto', $proyecto->id_proyecto)->whereNull('deleted_at')->sum('hospedaje');
+        $gExtraPas = (float) GastosExtra::where('id_proyecto', $proyecto->id_proyecto)->whereNull('deleted_at')->sum('pasajes');
+        $serviciosGastado += ($gExtraAli + $gExtraHos + $gExtraPas);
+
+        $budgetMaterials = [
+            'assigned' => (float) ($apartado->monto_material ?? 0),
+            'spent'    => $materialesGastado,
+        ];
+        $budgetMaterials['remaining'] = max(0, $budgetMaterials['assigned'] - $budgetMaterials['spent']);
+
+        $budgetPersonal = [
+            'assigned' => (float) ($apartado->monto_operativos ?? 0),
+            'spent'    => $personalGastado,
+        ];
+        $budgetPersonal['remaining'] = max(0, $budgetPersonal['assigned'] - $budgetPersonal['spent']);
+
+        $budgetServicios = [
+            'assigned' => (float) ($apartado->monto_servicios ?? 0),
+            'spent'    => $serviciosGastado,
+        ];
+        $budgetServicios['remaining'] = max(0, $budgetServicios['assigned'] - $budgetServicios['spent']);
+
+        // Pre-cargar trabajadores disponibles (no asignados al proyecto) como fallback para el modal
+        $trabajadoresPreload = \App\Models\Trabajadores::select('id_trabajadores', 'nombre_trab', 'apellido_trab', 'dni_trab')
+            ->whereNull('deleted_at')
+            ->whereNotIn('id_trabajadores', function ($q) use ($proyecto) {
+                $q->select('id_trabajadores')
+                    ->from('planilla')
+                    ->where('id_proyecto', $proyecto->id_proyecto)
+                    ->whereNull('deleted_at');
+            })
+            ->orderBy('nombre_trab')
+            ->orderBy('apellido_trab')
+            ->take(100)
+            ->get();
+
+        return view('admin.proyectos.show', compact('proyecto', 'planilla', 'gastosExtra', 'materiales', 'servicios', 'budgetMaterials', 'budgetPersonal', 'budgetServicios', 'trabajadoresPreload'));
     } catch (\Exception $e) {
         Log::error('Error al mostrar proyecto: ' . $e->getMessage(), [
             'proyecto_id' => $proyecto->id_proyecto,
@@ -511,32 +552,39 @@ class ProyectosController extends Controller
         }
     }
 
-    public function addPlanilla(Request $request, $proyecto_id){
+    public function addPlanilla(Request $request, Proyectos $proyecto){
         try {
-            // Verificar si el proyecto está finalizado
-            if ($this->isProyectoFinalizado($proyecto_id)) {
+            if ($this->isProyectoFinalizado($proyecto->id_proyecto)) {
+                Log::warning('Intento de agregar planilla en proyecto finalizado', ['proyecto_id' => $proyecto->id_proyecto]);
                 return response()->json(['error' => 'El proyecto ya esta finalizado. No se pueden agregar más registros.'], 400);
             }
 
-            Log::info('Memoria antes de crear planilla', ['memory' => memory_get_usage() / 1024 / 1024 . ' MB']);
+            Log::info('Iniciando addPlanilla', [
+                'proyecto_id' => $proyecto->id_proyecto,
+                'request_data' => $request->all(),
+                'content_type' => $request->header('Content-Type'),
+                'memory' => memory_get_usage() / 1024 / 1024 . ' MB'
+            ]);
 
-            $request->validate([
+            $validated = $request->validate([
                 'trabajador_id' => 'required|integer|exists:trabajadores,id_trabajadores',
             ]);
 
-            // Verificar si el trabajador ya está en la planilla
-            $exists = Planilla::where('id_proyecto', $proyecto_id)
+            $exists = Planilla::where('id_proyecto', $proyecto->id_proyecto)
                 ->where('id_trabajadores', $request->trabajador_id)
                 ->whereNull('deleted_at')
                 ->exists();
 
             if ($exists) {
+                Log::warning('Trabajador ya existe en planilla', ['trabajador_id' => $request->trabajador_id, 'proyecto_id' => $proyecto->id_proyecto]);
                 return response()->json(['error' => 'El trabajador ya está en la planilla de este proyecto.'], 400);
             }
 
-            // Crear registro en la planilla con carga mínima de relaciones
+            // REMOVIDO: Chequeo de presupuesto (mover a operaciones que gastan, no a agregar trabajador)
+            // Si quieres warn en lugar de block, puedes agregar log o response warn, pero no error 400.
+
             $planilla = Planilla::create([
-                'id_proyecto' => $proyecto_id,
+                'id_proyecto' => $proyecto->id_proyecto,
                 'id_trabajadores' => $request->trabajador_id,
                 'dias_trabajados' => 0,
                 'pago' => 0,
@@ -546,30 +594,53 @@ class ProyectosController extends Controller
                 'estado' => 'NO LIQUIDADO',
             ]);
 
-            // Cargar solo el DNI del trabajador
-            $trabajador = Trabajadores::find($request->trabajador_id, ['id_trabajadores', 'dni_trab']);
+            Log::info('Planilla creada', ['planilla_id' => $planilla->id_planilla]);
+
+            $trabajador = Trabajadores::find($request->trabajador_id, ['id_trabajadores', 'dni_trab', 'nombre_trab', 'apellido_trab']);
 
             Log::info('Memoria después de crear planilla', ['memory' => memory_get_usage() / 1024 / 1024 . ' MB']);
 
-            return response()->json([
+            $nombreCompleto = trim(($trabajador->nombre_trab ?? '') . ' ' . ($trabajador->apellido_trab ?? ''));
+            
+            $responseData = [
                 'success' => true,
                 'id' => $planilla->id_planilla,
-                'dni_trab' => $trabajador->dni_trab,
+                'dni_trab' => $trabajador->dni_trab ?? '',
+                'nombre_completo' => $nombreCompleto,
                 'dias_trabajados' => $planilla->dias_trabajados,
                 'pago' => $planilla->pago,
                 'alimentacion_trabajador' => $planilla->alimentacion_trabajador,
                 'hospedaje_trabajador' => $planilla->hospedaje_trabajador,
                 'pasajes_trabajador' => $planilla->pasajes_trabajador,
                 'estado' => $planilla->estado,
-            ], 201);
+            ];
+
+            Log::info('Trabajador agregado exitosamente', [
+                'proyecto_id' => $proyecto->id_proyecto,
+                'planilla_id' => $planilla->id_planilla,
+                'trabajador_id' => $request->trabajador_id,
+                'response_data' => $responseData
+            ]);
+            
+            return response()->json($responseData, 201);
         } catch (ValidationException $e) {
-            return response()->json(['error' => implode(', ', $e->errors())], 422);
+            Log::error('Error de validación en addPlanilla', [
+                'errors' => $e->errors(),
+                'request' => $request->all()
+            ]);
+            
+            $errorMessages = [];
+            foreach ($e->errors() as $field => $messages) {
+                $errorMessages[] = implode(', ', $messages);
+            }
+            return response()->json(['error' => 'Error de validación: ' . implode('. ', $errorMessages)], 422);
         } catch (\Exception $e) {
             Log::error('Error al agregar registro a la planilla: ' . $e->getMessage(), [
                 'request' => $request->all(),
-                'proyecto_id' => $proyecto_id,
+                'proyecto_id' => $proyecto->id_proyecto ?? null,
+                'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['error' => 'No se pudo agregar el trabajador.'], 500);
+            return response()->json(['error' => 'Error al agregar el trabajador: ' . $e->getMessage()], 500);
         }
     }
 
@@ -643,6 +714,19 @@ class ProyectosController extends Controller
                 return response()->json(['error' => 'La planilla no pertenece a este proyecto.'], 403);
             }
 
+            // Enforce budget (Personal) before applying increments
+            $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
+            $assigned = (float)($apartado->monto_operativos ?? 0);
+            $spent = (float) DB::table('planilla')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador),0) AS total')
+                ->value('total');
+            $increment = (float)$request->alimentacion_trabajador + (float)$request->hospedaje_trabajador + (float)$request->pasajes_trabajador;
+            if ($spent + $increment > $assigned + 1e-9) {
+                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Personal.'], 400);
+            }
+
             // Sumar los nuevos valores a los existentes
             $planilla->alimentacion_trabajador += $request->alimentacion_trabajador;
             $planilla->hospedaje_trabajador += $request->hospedaje_trabajador;
@@ -709,6 +793,18 @@ class ProyectosController extends Controller
 
         $proyecto = Proyectos::findOrFail($proyecto);
 
+        // Presupuesto: Materiales (bloquear si excede)
+        $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
+        $assigned = (float)($apartado->monto_material ?? 0);
+        $spent = (float) DB::table('materiales')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->sum('monto_mat');
+        $nuevoMonto = (float) $request->monto_mat;
+        if ($spent + $nuevoMonto > $assigned + 1e-9) {
+            return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Materiales.'], 400);
+        }
+
         $material = Materiales::create([
             'id_proyecto' => $proyecto->id_proyecto,
             'descripcion_mat' => $request->descripcion_mat,
@@ -756,6 +852,20 @@ public function updateMaterial(Request $request, $proyecto, $id)
         $material = Materiales::where('id_proyecto', $proyecto->id_proyecto)
             ->where('id_material', $id)
             ->firstOrFail();
+
+        // Presupuesto: Materiales (validar delta)
+        $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
+        $assigned = (float)($apartado->monto_material ?? 0);
+        $spent = (float) DB::table('materiales')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->sum('monto_mat');
+        $montoActual = (float) $material->monto_mat;
+        $montoNuevo = (float) $request->monto_mat;
+        $nuevoTotal = $spent - $montoActual + $montoNuevo;
+        if ($nuevoTotal > $assigned + 1e-9) {
+            return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Materiales.'], 400);
+        }
 
         $material->update([
             'descripcion_mat' => $request->descripcion_mat,
@@ -1008,8 +1118,20 @@ public function destroyMaterial($proyecto, $id)
                 'Dia_de_Semana' => $diaSemana,
             ]);
 
-            // Incrementar días trabajados y sumar pago de acuerdo a pago_dia
+            // Enforce budget (Personal) before incrementing pago
+            $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
+            $assigned = (float)($apartado->monto_operativos ?? 0);
+            $spent = (float) DB::table('planilla')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador),0) AS total')
+                ->value('total');
             $incremento = (float) ($planilla->pago_dia ?? 0);
+            if ($spent + $incremento > $assigned + 1e-9) {
+                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Personal.'], 400);
+            }
+
+            // Incrementar días trabajados y sumar pago de acuerdo a pago_dia
             $planilla->dias_trabajados = (int) $planilla->dias_trabajados + 1;
             $planilla->pago = (float) $planilla->pago + $incremento;
             $planilla->save();
@@ -1399,6 +1521,25 @@ public function destroyMaterial($proyecto, $id)
 
             $proyecto = Proyectos::findOrFail($proyecto);
 
+            // Presupuesto: Servicios (servicios + gastos extra)
+            $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
+            $assigned = (float)($apartado->monto_servicios ?? 0);
+            $serviciosGastado = (float) DB::table('servicios')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->sum('monto');
+            $gExtra = DB::table('gastos_extra')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->selectRaw('COALESCE(SUM(alimentacion_general),0) ali, COALESCE(SUM(hospedaje),0) hos, COALESCE(SUM(pasajes),0) pas')
+                ->first();
+            $gastosExtraGastado = (float)($gExtra->ali ?? 0) + (float)($gExtra->hos ?? 0) + (float)($gExtra->pas ?? 0);
+            $spent = $serviciosGastado + $gastosExtraGastado;
+            $increment = (float)$request->alimentacion_general + (float)$request->hospedaje + (float)$request->pasajes;
+            if ($spent + $increment > $assigned + 1e-9) {
+                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Servicios.'], 400);
+            }
+
             $gasto = GastosExtra::create([
                 'id_proyecto' => $proyecto->id_proyecto,
                 'alimentacion_general' => $request->alimentacion_general,
@@ -1443,6 +1584,27 @@ public function destroyMaterial($proyecto, $id)
             $gasto = GastosExtra::where('id_proyecto', $proyecto)
                 ->where('id_gasto', $id)
                 ->firstOrFail();
+
+            // Presupuesto: Servicios (validar delta)
+            $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto)->first();
+            $assigned = (float)($apartado->monto_servicios ?? 0);
+            $serviciosGastado = (float) DB::table('servicios')
+                ->where('id_proyecto', $proyecto)
+                ->whereNull('deleted_at')
+                ->sum('monto');
+            $gExtra = DB::table('gastos_extra')
+                ->where('id_proyecto', $proyecto)
+                ->whereNull('deleted_at')
+                ->selectRaw('COALESCE(SUM(alimentacion_general),0) ali, COALESCE(SUM(hospedaje),0) hos, COALESCE(SUM(pasajes),0) pas')
+                ->first();
+            $gastosExtraGastado = (float)($gExtra->ali ?? 0) + (float)($gExtra->hos ?? 0) + (float)($gExtra->pas ?? 0);
+            $spent = $serviciosGastado + $gastosExtraGastado;
+            $delta = ((float)$request->alimentacion_general - (float)$gasto->alimentacion_general)
+                  + ((float)$request->hospedaje - (float)$gasto->hospedaje)
+                  + ((float)$request->pasajes - (float)$gasto->pasajes);
+            if ($spent + $delta > $assigned + 1e-9) {
+                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Servicios.'], 400);
+            }
 
             $gasto->update([
                 'alimentacion_general' => $request->alimentacion_general,
@@ -1689,5 +1851,69 @@ public function destroyMaterial($proyecto, $id)
 
         // Descargar el PDF
         return $pdf->download('Proyecto_' . $proyecto->nombre_proyecto . '.pdf');
+    }
+
+    /**
+     * API: Presupuesto por apartados (Materiales, Personal, Servicios)
+     * GET /api/proyectos/{proyecto}/budgets
+     */
+    public function getBudgetSummary(Proyectos $proyecto)
+    {
+        try {
+            $apartado = DB::table('montos_apartados')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->first();
+
+            $materialesGastado = (float) DB::table('materiales')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->sum('monto_mat');
+
+            $personalGastado = (float) DB::table('planilla')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador),0) AS total')
+                ->value('total');
+
+            $serviciosGastado = (float) DB::table('servicios')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->sum('monto');
+            $gExtra = DB::table('gastos_extra')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->selectRaw('COALESCE(SUM(alimentacion_general),0) ali, COALESCE(SUM(hospedaje),0) hos, COALESCE(SUM(pasajes),0) pas')
+                ->first();
+            $serviciosGastado += (float)($gExtra->ali ?? 0) + (float)($gExtra->hos ?? 0) + (float)($gExtra->pas ?? 0);
+
+            $materials = [
+                'assigned' => (float)($apartado->monto_material ?? 0),
+                'spent' => $materialesGastado,
+            ];
+            $materials['remaining'] = max(0, $materials['assigned'] - $materials['spent']);
+
+            $personal = [
+                'assigned' => (float)($apartado->monto_operativos ?? 0),
+                'spent' => $personalGastado,
+            ];
+            $personal['remaining'] = max(0, $personal['assigned'] - $personal['spent']);
+
+            $services = [
+                'assigned' => (float)($apartado->monto_servicios ?? 0),
+                'spent' => $serviciosGastado,
+            ];
+            $services['remaining'] = max(0, $services['assigned'] - $services['spent']);
+
+            return response()->json([
+                'materials' => $materials,
+                'personal' => $personal,
+                'services' => $services,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error en getBudgetSummary: '.$e->getMessage(), [
+                'proyecto_id' => $proyecto->id_proyecto,
+            ]);
+            return response()->json(['error' => 'No se pudo obtener el presupuesto.'], 500);
+        }
     }
 }

@@ -9,7 +9,7 @@
                     <button id="marcar-asistencia-btn" type="button" class="btn btn-success btn-sm">
                         <i class="fa fa-check"></i> Marcar Asistencia
                     </button>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="openModal()">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="openPlanillaModal()">
                         <i class="fa fa-plus"></i>
                     </button>
                 </div>
@@ -30,8 +30,24 @@
         </div>
     </div>
 
-    <!-- Mensaje de error -->
-    <div id="asistencia-error" class="hidden text-red-600 mt-2"></div>
+    <!-- Presupuesto Personal -->
+    <div class="col-md-12">
+        <div class="box box-success">
+            <div class="box-header with-border">
+                <h3 class="box-title">Presupuesto Personal</h3>
+            </div>
+            <div class="box-body">
+                <div class="row">
+                    <div class="col-sm-4"><p><strong>Asignado (monto_operativos):</strong> S/<span id="per-assigned">{{ isset($budgetPersonal['assigned']) ? number_format($budgetPersonal['assigned'], 2) : '0.00' }}</span></p></div>
+                    <div class="col-sm-4"><p><strong>Gastado:</strong> S/<span id="per-spent">{{ isset($budgetPersonal['spent']) ? number_format($budgetPersonal['spent'], 2) : '0.00' }}</span></p></div>
+                    <div class="col-sm-4"><p><strong>Restante:</strong> S/<span id="per-remaining">{{ isset($budgetPersonal['remaining']) ? number_format($budgetPersonal['remaining'], 2) : '0.00' }}</span></p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mensaje de error global (evitar duplicar ID con el modal) -->
+    <div id="asistencia-global-error" class="hidden text-red-600 mt-2"></div>
 
     <!-- Planilla de trabajadores (ahora ocupa todo el ancho disponible) -->
     <div class="col-md-12">
@@ -111,19 +127,28 @@
             <div class="modal-header bg-primary">
                 <h4 class="modal-title text-white" id="trabajadores-modal-label">Agregar Trabajador al Personal</h4>
             </div>
+            <form id="add-trabajador-form">
             <div class="modal-body">
                 <div class="form-group">
                     <label for="trabajador_id" class="font-semibold">Seleccionar Trabajador</label>
                     <select id="trabajador_id" class="form-control" required>
                         <option value="" disabled selected>Seleccione al trabajador a Agregar</option>
+                        @if(isset($trabajadoresPreload) && count($trabajadoresPreload))
+                            @foreach($trabajadoresPreload as $t)
+                                <option value="{{ $t->id_trabajadores }}" data-nombre="{{ trim(($t->nombre_trab ?? '') . ' ' . ($t->apellido_trab ?? '')) }}">
+                                    {{ trim(($t->nombre_trab ?? '') . ' ' . ($t->apellido_trab ?? '')) }} ({{ $t->dni_trab ?? '' }})
+                                </option>
+                            @endforeach
+                        @endif
                     </select>
                 </div>
-                <div id="error-message" class="alert alert-danger hidden"></div>
+                <div id="trabajadores-error-message" class="alert alert-danger hidden"></div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="addTrabajador()">Agregar</button>
+                <button type="button" class="btn btn-primary" id="btn-add-trabajador">Agregar</button>
             </div>
+            </form>
         </div>
     </div>
 </div>
@@ -269,152 +294,450 @@
 </div>
 
 <!-- Modal de confirmación de eliminación -->
-<div class="modal fade" id="eliminar-modal" tabindex="-1" role="dialog" aria-labelledby="eliminar-modal-label">
-    <div class="modal-dialog" role="document">
-        <div class="modal-content planilla-custom-modal">
-            <div class="modal-header bg-red">
-                <h4 class="modal-title text-white" id="eliminar-modal-label">Confirmar eliminación</h4>
+<div class="modal fade" id="eliminar-modal" tabindex="-1" role="dialog" aria-labelledby="eliminar-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eliminar-modal-title">Confirmar Eliminación</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
             </div>
             <div class="modal-body">
-                <p>¿Deseas eliminar este registro de la planilla?</p>
-                <div id="delete-error-message" class="alert alert-danger hidden" style="margin-top:10px;"></div>
+                <p>¿Estás seguro de que deseas eliminar a este trabajador de la planilla?</p>
+                <div id="delete-error-message" class="alert alert-danger hidden"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" onclick="confirmDeleteTrabajador()">Eliminar</button>
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn" onclick="confirmDeleteTrabajador()">Eliminar</button>
             </div>
         </div>
     </div>
-</div>    
+</div>   
 </div>
 <script>
-    let proyectoId = {{ $proyecto->id_proyecto }};
-    let pendingDeleteId = null;
-    let asistenciaBloqueadaHoy = false;
+    // Verificar que el script se carga
+    console.log('[planilla.blade.php] Script iniciado');
 
-    // Funciones para el modal de agregar trabajador
-    function openModal() {
+    // Fallbacks para UI
+    window.showToast = typeof window.showToast === 'function' ? window.showToast : function(msg, type, ms) { console.log('[toast]', type || 'info', msg); };
+    window.showSystemNotice = function(msg) { showToast(msg, 'info', 5000); };
+    window.showTransientError = function(msg) { showToast(msg, 'error', 6000); };
+
+    // Variables globales
+    const proyectoId = {{ $proyecto->id_proyecto }};
+    const BASE = window.location.origin + '{{ request()->getBaseUrl() }}';
+    const ADD_PLANILLA_PATH = "{{ route('proyectos.addPlanilla', $proyecto->id_proyecto, false) }}";
+    const ADD_PLANILLA_URL = `${BASE}${ADD_PLANILLA_PATH}`;
+    const TRABAJADORES_PRELOAD = @json(isset($trabajadoresPreload) ? $trabajadoresPreload : []);
+
+    console.log('[planilla] Config:', { proyectoId, BASE, ADD_PLANILLA_URL, trabajadoresCount: TRABAJADORES_PRELOAD.length });
+
+    // Función para escapar caracteres especiales
+    function escapeHtml(str) {
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+    }
+
+    function escapeJS(str) {
+        if (!str) return '';
+        return str.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    }
+
+    // Actualizar presupuesto personal
+    async function refreshBudgetPersonal() {
+        try {
+            const res = await fetch(`${BASE}/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!res.ok) throw new Error('No se pudo obtener presupuesto');
+            const data = await res.json();
+            const p = data.personal || { assigned: 0, spent: 0, remaining: 0 };
+            const a = document.getElementById('per-assigned');
+            const s = document.getElementById('per-spent');
+            const r = document.getElementById('per-remaining');
+            if (a) a.textContent = Number(p.assigned).toFixed(2);
+            if (s) s.textContent = Number(p.spent).toFixed(2);
+            if (r) r.textContent = Number(p.remaining).toFixed(2);
+        } catch (e) { console.error('[refreshBudgetPersonal] Error:', e); }
+    }
+
+    // Obtener presupuesto personal
+    async function getBudgetPersonal() {
+        const res = await fetch(`${BASE}/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!res.ok) throw new Error('No se pudo obtener presupuesto');
+        const data = await res.json();
+        return data && data.personal ? data.personal : { assigned: 0, spent: 0, remaining: 0 };
+    }
+
+    // Actualizar resumen
+    function updateResumen() {
+        const ocupadas = document.querySelectorAll('#trabajadores-table tr').length;
+        const plazas = {{ $proyecto->cantidad_trabajadores }};
+        const plazasOcupadasEl = document.getElementById('plazas-ocupadas');
+        const trabajadoresAdicionalesEl = document.getElementById('trabajadores-adicionales');
+        if (plazasOcupadasEl) plazasOcupadasEl.textContent = ocupadas;
+        if (trabajadoresAdicionalesEl) trabajadoresAdicionalesEl.textContent = ocupadas > plazas ? ocupadas - plazas : 0;
+    }
+
+    // Renderizar opciones de trabajadores
+    function renderTrabajadoresOptions(select, lista) {
+        select.innerHTML = '<option value="" disabled selected>Seleccione al trabajador a Agregar</option>';
+        if (!Array.isArray(lista) || lista.length === 0) return 0;
+
+        // Obtener IDs de trabajadores ya en la planilla
+        const existingIds = new Set(
+            Array.from(document.querySelectorAll('#trabajadores-table tr'))
+                .map(row => {
+                    const id = row.getAttribute('data-id');
+                    const btn = row.querySelector('.open-update-modal');
+                    return btn ? parseInt(btn.dataset.planillaId) : null;
+                })
+                .filter(id => id !== null)
+        );
+        console.log('[planilla] IDs de trabajadores ya en planilla:', Array.from(existingIds));
+
+        // Filtrar trabajadores que no están en la planilla
+        const filteredLista = lista.filter(trabajador => {
+            const id = trabajador.id_trabajadores || trabajador.id || trabajador.ID || trabajador.Id || null;
+            return id && !existingIds.has(id);
+        });
+
+        filteredLista.forEach(trabajador => {
+            const option = document.createElement('option');
+            const id = trabajador.id_trabajadores || trabajador.id || trabajador.ID || trabajador.Id || null;
+            const nombre = trabajador.nombre_trab || trabajador.nombre || trabajador.first_name || '';
+            const apellido = trabajador.apellido_trab || trabajador.apellido || trabajador.last_name || '';
+            const dni = trabajador.dni_trab || trabajador.dni || trabajador.DNI || '';
+            if (!id) return;
+            option.value = id;
+            const label = `${nombre} ${apellido} (${dni})`.trim();
+            option.textContent = label;
+            option.label = label;
+            option.dataset.nombre = `${nombre} ${apellido}`.trim();
+            select.appendChild(option);
+        });
+        return select.options.length - 1;
+    }
+
+    // Abrir modal de trabajadores
+    window.openPlanillaModal = async function() {
+        console.log('[planilla] openPlanillaModal iniciado');
         const modal = document.getElementById('trabajadores-modal');
         const select = document.getElementById('trabajador_id');
-        const errorMessage = document.getElementById('error-message');
+        const btnAdd = document.getElementById('btn-add-trabajador');
+        const errorMessage = document.getElementById('trabajadores-error-message');
+        console.log('[planilla] Elementos:', { modal: !!modal, select: !!select, btnAdd: !!btnAdd });
         if (!modal || !select) return;
-        errorMessage.classList.add('hidden');
-        select.innerHTML = '<option value="" disabled selected>Seleccione al trabajador a Agregar</option>';
-        // Asegurar que al seleccionar se muestre el nombre en el mismo select y se oculte el error
-        select.onchange = function() {
-            if (this.value && errorMessage) {
-                errorMessage.classList.add('hidden');
+
+        try {
+            const p = await getBudgetPersonal();
+            if (p.remaining <= 0) {
+                showToast('Se alcanzó el límite del presupuesto de Personal.', 'error', 6000);
+            } else if (p.assigned > 0 && p.remaining <= p.assigned * 0.2) {
+                showToast('Falta 20% para alcanzar el límite del presupuesto de Personal.', 'warning', 6000);
             }
-        };
-        $('#trabajadores-modal').modal('show');
-        setTimeout(() => { try { select.focus(); } catch(e){} }, 150);
-        fetch(`{{ route("trabajadores.list") }}?proyecto_id=${proyectoId}`, {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        } catch(e) { console.warn('No se pudo verificar presupuesto antes de abrir modal:', e); }
+
+        errorMessage.classList.add('hidden');
+        
+        // Usar TRABAJADORES_PRELOAD si tiene datos válidos
+        if (Array.isArray(TRABAJADORES_PRELOAD) && TRABAJADORES_PRELOAD.length > 0) {
+            const count = renderTrabajadoresOptions(select, TRABAJADORES_PRELOAD);
+            console.log('[planilla] Opciones preload renderizadas:', count);
+            if (btnAdd) btnAdd.disabled = count <= 1;
+            if (count <= 1) {
+                errorMessage.textContent = 'No hay trabajadores disponibles.';
+                errorMessage.classList.remove('hidden');
+            } else {
+                $('#trabajadores-modal').modal('show');
+                setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
+                return; // Evitar fetch si preload tiene datos
+            }
+        } else {
+            select.innerHTML = '<option value="" disabled selected>Cargando trabajadores...</option>';
+            if (btnAdd) btnAdd.disabled = true;
+        }
+
+        // Fetch solo si TRABAJADORES_PRELOAD está vacío
+        fetch(`${BASE}/admin/trabajadores/list?proyecto_id=${proyectoId}`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin',
+            cache: 'no-store'
         })
         .then(response => {
-            if (response.status === 401) return window.location.href = '{{ route("login") }}';
-            if (!response.ok) throw new Error('Error al cargar los trabajadores');
+            if (response.status === 401) return window.location.href = '{{ route("login.form") }}';
+            const ct = (response.headers.get('content-type') || '').toLowerCase();
+            if (!response.ok || !ct.includes('application/json')) throw new Error('Error al cargar los trabajadores');
             return response.json();
         })
-        .then(data => {
-            if (!Array.isArray(data) || data.length === 0) {
+        .then(async data => {
+            console.log('Trabajadores disponibles recibidos (primario):', data);
+            let listaRaw = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : []);
+            let lista = listaRaw;
+            if (lista.length === 0) {
+                try {
+                    const resAll = await fetch(`${BASE}/admin/trabajadores/list`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', cache: 'no-store' });
+                    const ct2 = (resAll.headers.get('content-type') || '').toLowerCase();
+                    if (resAll.ok && ct2.includes('application/json')) {
+                        const all = await resAll.json();
+                        console.log('Trabajadores disponibles (fallback):', all);
+                        lista = Array.isArray(all) ? all : (Array.isArray(all?.data) ? all.data : []);
+                    }
+                } catch(e) { console.warn('Fallback trabajadores.list sin proyecto_id falló:', e); }
+            }
+            const count = renderTrabajadoresOptions(select, lista);
+            console.log('[planilla] Opciones renderizadas:', count);
+            if (btnAdd) btnAdd.disabled = count <= 1;
+            if (count <= 1) {
                 errorMessage.textContent = 'No hay trabajadores disponibles.';
                 errorMessage.classList.remove('hidden');
                 return;
             }
-            data.forEach(trabajador => {
-                const option = document.createElement('option');
-                option.value = trabajador.id_trabajadores;
-                const label = `${trabajador.nombre_trab} ${trabajador.apellido_trab} (${trabajador.dni_trab})`;
-                option.textContent = label;
-                option.label = label;
-                option.dataset.nombre = `${trabajador.nombre_trab} ${trabajador.apellido_trab}`;
-                select.appendChild(option);
-            });
+            $('#trabajadores-modal').modal('show');
+            setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
         })
-        .catch(error => {
-            console.error('Error:', error);
+        .catch(async error => {
+            console.error('Error carga trabajadores (primario):', error);
+            try {
+                const resAll = await fetch(`${BASE}/admin/trabajadores/list`, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin', cache: 'no-store' });
+                const ct2 = (resAll.headers.get('content-type') || '').toLowerCase();
+                if (resAll.ok && ct2.includes('application/json')) {
+                    const all = await resAll.json();
+                    const lista = Array.isArray(all) ? all : (Array.isArray(all?.data) ? all.data : []);
+                    const count = renderTrabajadoresOptions(select, lista);
+                    console.log('[planilla] Opciones fallback renderizadas:', count);
+                    if (btnAdd) btnAdd.disabled = count <= 1;
+                    if (count <= 1) {
+                        errorMessage.textContent = 'No hay trabajadores disponibles.';
+                        errorMessage.classList.remove('hidden');
+                        return;
+                    }
+                    $('#trabajadores-modal').modal('show');
+                    setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
+                    return;
+                }
+            } catch (e2) {
+                console.warn('Fallback trabajadores.list (catch) también falló:', e2);
+            }
             errorMessage.textContent = 'Error al cargar los trabajadores.';
             errorMessage.classList.remove('hidden');
         });
-    }
+    };
 
-    function closeModal() {
-        $('#trabajadores-modal').modal('hide');
-    }
+    // Función para agregar trabajador
+    window.addTrabajador = function() {
+        console.log('[planilla] addTrabajador() invoked - Paso 1: Inicio');
 
-    function addTrabajador() {
-        const trabajadorSelect = document.getElementById('trabajador_id');
-        const trabajadorId = parseInt(trabajadorSelect.value);
-        const trabajadorNombre = trabajadorSelect.selectedOptions[0]?.dataset.nombre;
-        const errorMessage = document.getElementById('error-message');
-        if (!trabajadorId) {
-            errorMessage.textContent = 'Por favor, selecciona un trabajador.';
-            errorMessage.classList.remove('hidden');
+        const btn = document.getElementById('btn-add-trabajador');
+        let originalText = '';
+        if (btn) {
+            if (btn.disabled) {
+                console.warn('[planilla] addTrabajador: botón deshabilitado, ignorado');
+                return;
+            }
+            btn.disabled = true;
+            originalText = btn.textContent;
+            btn.textContent = 'Agregando...';
+            console.log('[planilla] Button disabled - Paso 2: Preparando request');
+        } else {
+            console.error('[planilla] No se encontró #btn-add-trabajador');
+            showToast('No se encontró el botón de agregar. Recarga la página.', 'error', 6000);
             return;
         }
-        fetch(`{{ route("proyectos.addPlanilla", ":proyectoId") }}`.replace(':proyectoId', proyectoId), {
+
+        const trabajadorSelect = document.getElementById('trabajador_id');
+        const errorMessage = document.getElementById('trabajadores-error-message');
+
+        if (!trabajadorSelect) {
+            console.error('[planilla] No se encontró #trabajador_id');
+            showToast('No se encontró el selector de trabajador. Recarga la página.', 'error', 6000);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            return;
+        }
+
+        const trabajadorId = parseInt(trabajadorSelect.value);
+        const trabajadorNombre = trabajadorSelect.selectedOptions[0]?.dataset.nombre || 'Trabajador';
+
+        if (!trabajadorId || isNaN(trabajadorId)) {
+            console.log('[planilla] addTrabajador: no trabajador seleccionado - Paso 3: Validación fallida');
+            if (errorMessage) {
+                errorMessage.textContent = 'Por favor, selecciona un trabajador.';
+                errorMessage.classList.remove('hidden');
+            }
+            showToast('Por favor, selecciona un trabajador.', 'error', 5000);
+            btn.disabled = false;
+            btn.textContent = originalText;
+            return;
+        }
+
+        if (errorMessage) errorMessage.classList.add('hidden');
+
+        const requestData = {
+            trabajador_id: trabajadorId,
+            _token: document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
+        };
+
+        console.log('[planilla] POST a:', ADD_PLANILLA_URL, 'data:', requestData, ' - Paso 4: Enviando fetch');
+
+        fetch(ADD_PLANILLA_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
-            body: JSON.stringify({ trabajador_id: trabajadorId })
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': requestData._token
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(requestData)
         })
-        .then(response => {
-            if (!response.ok) throw new Error('Error al agregar el trabajador');
-            return response.json();
+        .then(async (response) => {
+            console.log('[planilla] Response recibida - Paso 5:', { status: response.status, ok: response.ok, redirected: response.redirected, url: response.url });
+            if (response.redirected && response.url.includes('/login')) {
+                console.warn('[planilla] Redirect a login detectado - Paso 6: No autorizado');
+                window.location.href = response.url;
+                throw new Error('No autorizado - redirigiendo a login');
+            }
+            const ct = (response.headers.get('content-type') || '').toLowerCase();
+            console.log('[planilla] Content-Type:', ct, ' - Paso 7');
+            let body;
+            if (ct.includes('application/json')) {
+                body = await response.json();
+            } else {
+                const text = await response.text();
+                console.warn('[planilla] Respuesta no JSON:', text.substring(0, 200), ' - Paso 8');
+                throw new Error('Respuesta no es JSON válida: ' + text.substring(0, 100));
+            }
+            console.log('[planilla] Response body:', body, ' - Paso 9');
+            if (!response.ok) {
+                throw new Error(`${body.error || 'Error desconocido'} [HTTP ${response.status}]`);
+            }
+            return body;
         })
         .then(data => {
+            console.log('[planilla] Data procesada exitosamente - Paso 10:', data);
+            if (!data.success) {
+                throw new Error(data.error || 'Error al agregar el trabajador');
+            }
+
             const table = document.getElementById('trabajadores-table');
-            table.innerHTML += `
-                <tr data-id="${data.id}">
-                    <td>${trabajadorNombre}</td>
-                    <td class="text-right">S/0.00</td>
-                    <td class="text-center">0</td>
+            if (table) {
+                const row = table.insertRow();
+                row.setAttribute('data-id', data.id);
+                row.innerHTML = `
+                    <td>${escapeHtml(data.nombre_completo)}</td>
+                    <td class="text-right">S/${Number(data.pago_dia || 0).toFixed(2)}</td>
+                    <td class="text-center">${data.dias_trabajados}</td>
                     <td class="text-right">S/${Number(data.pago).toFixed(2)}</td>
-                    <td>S/${Number(data.alimentacion_trabajador).toFixed(2)}</td>
-                    <td>S/${Number(data.hospedaje_trabajador).toFixed(2)}</td>
-                    <td>S/${Number(data.pasajes_trabajador).toFixed(2)}</td>
+                    <td class="text-right">S/${Number(data.alimentacion_trabajador).toFixed(2)}</td>
+                    <td class="text-right">S/${Number(data.hospedaje_trabajador).toFixed(2)}</td>
+                    <td class="text-right">S/${Number(data.pasajes_trabajador).toFixed(2)}</td>
                     <td>${data.estado}</td>
                     <td class="action-buttons planilla-action-buttons">
-                        <button type="button" class="btn btn-default btn-xs set-pago-dia-btn" onclick="openPagoDiaModal(${data.id}, '${trabajadorNombre}', 0)"><i class="fa fa-plus action-icon"></i></button>
-                        <button type="button" class="open-update-modal btn btn-warning btn-xs" data-planilla-id="${data.id}"><i class="fa fa-edit action-icon"></i></button>
-                        <button type="button" class="btn btn-danger btn-xs" onclick="removeTrabajador(${data.id})"><i class="fa fa-trash action-icon"></i></button>
-                        <button type="button" class="btn btn-info btn-xs open-details-modal"
-                            data-planilla-id="${data.id}"
-                            data-nombre="${trabajadorNombre}"
-                            data-dni="${data.dni_trab}"
-                            data-pago="${Number(data.pago).toFixed(2)}"
-                            data-alimentacion="${Number(data.alimentacion_trabajador).toFixed(2)}"
-                            data-hospedaje="${Number(data.hospedaje_trabajador).toFixed(2)}"
-                            data-pasajes="${Number(data.pasajes_trabajador).toFixed(2)}"
-                            data-estado="${data.estado}">
-                            <i class="fa fa-eye"></i>
+                        <button type="button" class="btn btn-default btn-xs set-pago-dia-btn" onclick="openPagoDiaModal(${data.id}, '${escapeJS(data.nombre_completo)}', ${Number(data.pago_dia || 0)})" ${data.pago_dia > 0 ? 'disabled' : ''}>
+                            <i class="fa fa-plus action-icon"></i>
+                        </button>
+                        <button type="button" class="btn btn-warning btn-xs open-update-modal" data-planilla-id="${data.id}">
+                            <i class="fa fa-edit action-icon"></i>
+                        </button>
+                        <button type="button" class="btn btn-danger btn-xs" onclick="removeTrabajador(${data.id})">
+                            <i class="fa fa-trash action-icon"></i>
                         </button>
                     </td>
-                </tr>
-            `;
+                `;
+                initializeUpdateModalEvents(); // Reasignar eventos a los nuevos botones
+            }
+
+            trabajadorSelect.value = '';
+            showToast(`Trabajador ${escapeHtml(trabajadorNombre)} agregado correctamente`, 'success', 5000);
+            $('#trabajadores-modal').modal('hide');
+            refreshBudgetPersonal();
             updateResumen();
-            initializeUpdateModalEvents();
-            initializeDetailsModalEvents();
-            closeModal();
+            console.log('[planilla] Trabajador agregado, tabla actualizada - Paso 11');
         })
         .catch(error => {
-            console.error('Error:', error);
-            errorMessage.textContent = error.message;
-            errorMessage.classList.remove('hidden');
+            console.error('[planilla] Error en fetch - Paso 12:', error.message);
+            showToast(`Error: ${error.message}`, 'error', 6000);
+            if (error.message.includes('no es JSON válida')) {
+                showToast('Error en el servidor. Contacta al administrador.', 'error', 6000);
+            }
+        })
+        .finally(() => {
+            console.log('[planilla] Proceso finalizado - Paso 13');
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = originalText;
+            }
+        });
+    };
+
+    // Inicializar eventos para botones de "Editar"
+    function initializeUpdateModalEvents() {
+        console.log('[planilla] initializeUpdateModalEvents ejecutado');
+        document.querySelectorAll('.open-update-modal').forEach(button => {
+            button.removeEventListener('click', handleUpdateModalClick);
+            button.addEventListener('click', handleUpdateModalClick);
         });
     }
 
-    // Pago Día handlers
-    function openPagoDiaModal(planillaId, nombre, currentPagoDia) {
+    function handleUpdateModalClick(event) {
+        event.preventDefault();
+        console.log('[planilla] Botón Editar clickeado');
+        const planillaId = this.dataset.planillaId;
+        openUpdateModal(planillaId);
+    }
+
+    // Inicializar eventos para botones de "Detalles" (aunque están comentados)
+    function initializeDetailsModalEvents() {
+        console.log('[planilla] initializeDetailsModalEvents ejecutado');
+        document.querySelectorAll('.open-details-modal').forEach(button => {
+            button.removeEventListener('click', handleDetailsModalClick);
+            button.addEventListener('click', handleDetailsModalClick);
+        });
+    }
+
+    function handleDetailsModalClick(event) {
+        event.preventDefault();
+        console.log('[planilla] Botón Detalles clickeado');
+        const btn = event.currentTarget;
+        openDetailsModal({
+            nombre: btn.dataset.nombre || '',
+            dni: btn.dataset.dni || '',
+            pago: btn.dataset.pago || '0.00',
+            alimentacion: btn.dataset.alimentacion || '0.00',
+            hospedaje: btn.dataset.hospedaje || '0.00',
+            pasajes: btn.dataset.pasajes || '0.00',
+            estado: btn.dataset.estado || ''
+        });
+    }
+
+    // Abrir modal de detalles
+    function openDetailsModal(data) {
+        console.log('[planilla] Abriendo modal de detalles:', data);
+        const modal = document.getElementById('detalles-modal');
+        if (!modal) return;
+        document.getElementById('detalle-nombre').textContent = data.nombre;
+        document.getElementById('detalle-dni').textContent = data.dni;
+        document.getElementById('detalle-pago').textContent = data.pago;
+        document.getElementById('detalle-alimentacion').textContent = data.alimentacion;
+        document.getElementById('detalle-hospedaje').textContent = data.hospedaje;
+        document.getElementById('detalle-pasajes').textContent = data.pasajes;
+        document.getElementById('detalle-estado').textContent = data.estado;
+        $('#detalles-modal').modal('show');
+    }
+
+    // Abrir modal de pago diario
+    window.openPagoDiaModal = function(planillaId, nombre, currentPagoDia) {
+        console.log('[planilla] openPagoDiaModal:', { planillaId, nombre, currentPagoDia });
         document.getElementById('pago_dia_planilla_id').value = planillaId;
         document.getElementById('pago-dia-trabajador').textContent = `Trabajador: ${nombre}`;
         document.getElementById('pago_dia_input').value = (Number(currentPagoDia) || 0).toFixed(2);
         document.getElementById('pago-dia-error').classList.add('hidden');
         $('#pago-dia-modal').modal('show');
-        setTimeout(() => { try { document.getElementById('pago_dia_input').focus(); } catch(e){} }, 100);
-    }
+        setTimeout(() => { try { document.getElementById('pago_dia_input').focus(); } catch(e){} }, 50);
+    };
 
-    function guardarPagoDia() {
+    // Guardar pago diario
+    window.guardarPagoDia = function() {
+        console.log('[planilla] guardarPagoDia iniciado');
         const planillaId = document.getElementById('pago_dia_planilla_id').value;
         const pagoDia = parseFloat(document.getElementById('pago_dia_input').value || '0');
         const errorBox = document.getElementById('pago-dia-error');
@@ -424,9 +747,7 @@
             errorBox.classList.remove('hidden');
             return;
         }
-        const url = `{{ route('proyectos.setPagoDia', ['proyecto' => ':proyectoId', 'planilla' => ':planillaId']) }}`
-            .replace(':proyectoId', proyectoId)
-            .replace(':planillaId', planillaId);
+        const url = `${BASE}/admin/proyectos/${proyectoId}/planilla/${planillaId}/pago-dia`;
         fetch(url, {
             method: 'POST',
             headers: {
@@ -434,30 +755,35 @@
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}'
             },
+            credentials: 'same-origin',
             body: JSON.stringify({ pago_dia: pagoDia })
         })
         .then(r => r.json().then(j => ({ ok: r.ok, body: j })))
         .then(({ ok, body }) => {
+            console.log('[planilla] guardarPagoDia respuesta:', { ok, body });
             if (!ok) throw new Error(body.error || 'Error al guardar pago diario');
             const row = document.querySelector(`#trabajadores-table tr[data-id="${planillaId}"]`);
             if (row) {
-                // Columnas: 1 nombre, 2 pago_dia, 3 días, 4 pago, 5 ali, 6 hos, 7 pas, 8 estado, 9 acciones
                 const pagoDiaCell = row.querySelector('td:nth-child(2)');
                 if (pagoDiaCell) pagoDiaCell.textContent = `S/${pagoDia.toFixed(2)}`;
-                // Deshabilitar botón establecer pago día
                 const btn = row.querySelector('.set-pago-dia-btn');
                 if (btn) btn.setAttribute('disabled', 'disabled');
             }
             $('#pago-dia-modal').modal('hide');
+            refreshBudgetPersonal();
+            showToast('Pago diario guardado correctamente', 'success', 5000);
         })
         .catch(err => {
+            console.error('[planilla] Error en guardarPagoDia:', err.message);
             errorBox.textContent = err.message;
             errorBox.classList.remove('hidden');
+            showToast(err.message, 'error', 6000);
         });
-    }
+    };
 
-    // Funciones para el modal de agregar nuevos gastos
+    // Abrir modal de actualizar gastos
     function openUpdateModal(planillaId) {
+        console.log('[planilla] openUpdateModal:', { planillaId });
         const modal = document.getElementById('update-modal');
         const form = document.getElementById('update-form');
         const title = document.getElementById('update-modal-title');
@@ -469,48 +795,126 @@
         errorMessage.classList.add('hidden');
         planillaIdInput.value = planillaId;
         title.textContent = 'Agregar Nuevos Gastos del Trabajador';
-        setTimeout(() => document.getElementById('alimentacion_trabajador').focus(), 100);
+        setTimeout(() => document.getElementById('alimentacion_trabajador').focus(), 50);
     }
 
-    function closeUpdateModal() {
-        $('#update-modal').modal('hide');
-        const form = document.getElementById('update-form');
-        if (form) form.reset();
-        const errorMessage = document.getElementById('update-error-message');
-        if (errorMessage) errorMessage.classList.add('hidden');
+    // Manejar submit del formulario de gastos
+    const updateForm = document.getElementById('update-form');
+    if (updateForm) {
+        updateForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('[planilla] update-form submit');
+            const planillaId = document.getElementById('update_planilla_id').value;
+            const alimentacion = document.getElementById('alimentacion_trabajador').value;
+            const hospedaje = document.getElementById('hospedaje_trabajador').value;
+            const pasajes = document.getElementById('pasajes_trabajador').value;
+            const errorMessage = document.getElementById('update-error-message');
+            const suma = (parseFloat(alimentacion) || 0) + (parseFloat(hospedaje) || 0) + (parseFloat(pasajes) || 0);
+            getBudgetPersonal().then(p => {
+                if (suma > (p.remaining || 0) + 1e-6) {
+                    errorMessage.textContent = 'No se pueden agregar gastos: se supera el límite del presupuesto de Personal.';
+                    errorMessage.classList.remove('hidden');
+                    showToast('No se pueden agregar gastos: se supera el límite del presupuesto.', 'error', 6000);
+                    throw new Error('BudgetExceeded');
+                }
+                if ((p.assigned || 0) > 0 && (p.remaining - suma) <= (p.assigned * 0.2)) {
+                    showToast('Aviso: con esta acción, quedarás a menos del 20% del presupuesto de Personal.', 'warning', 6000);
+                }
+                return null;
+            }).then(() => {
+                const url = `${BASE}/admin/proyectos/${proyectoId}/planilla/${planillaId}/update-gastos`;
+                fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({
+                        alimentacion_trabajador: parseFloat(alimentacion) || 0,
+                        hospedaje_trabajador: parseFloat(hospedaje) || 0,
+                        pasajes_trabajador: parseFloat(pasajes) || 0
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(j => { throw new Error(j.error || 'Error al actualizar los gastos'); });
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('[planilla] update-gastos éxito:', data);
+                    if (data.success) {
+                        const row = document.querySelector(`#trabajadores-table tr[data-id="${planillaId}"]`);
+                        if (row) {
+                            row.querySelector('td:nth-child(5)').textContent = `S/${Number(data.alimentacion_trabajador).toFixed(2)}`;
+                            row.querySelector('td:nth-child(6)').textContent = `S/${Number(data.hospedaje_trabajador).toFixed(2)}`;
+                            row.querySelector('td:nth-child(7)').textContent = `S/${Number(data.pasajes_trabajador).toFixed(2)}`;
+                        }
+                        $('#update-modal').modal('hide');
+                        refreshBudgetPersonal();
+                        showToast('Gastos actualizados correctamente', 'success', 5000);
+                    } else {
+                        errorMessage.textContent = data.error || 'Error al actualizar los gastos';
+                        errorMessage.classList.remove('hidden');
+                        showToast(data.error || 'Error al actualizar los gastos', 'error', 6000);
+                    }
+                })
+                .catch(error => {
+                    console.error('[planilla] Error en update-gastos:', error.message);
+                    if (error.message !== 'BudgetExceeded') {
+                        errorMessage.textContent = error.message;
+                        errorMessage.classList.remove('hidden');
+                        showToast(error.message, 'error', 6000);
+                    }
+                });
+            });
+        });
     }
 
-    // Modal y acción para marcar asistencia (reemplaza Agregar Sueldos)
-    function openAsistenciaModal() {
-        // Pre-chequeo local: si ya se marcó hoy, no abrir
-        if (asistenciaBloqueadaHoy) {
-            showSystemNotice('No puedes marcar la asistencia porque ya se marcó hoy. Espera hasta mañana.');
+    // Abrir modal de asistencia
+    window.openAsistenciaModal = async function() {
+        console.log('[planilla] openAsistenciaModal iniciado');
+        const rowsCount = document.querySelectorAll('#trabajadores-table tr').length;
+        if (rowsCount === 0) {
+            console.log('[planilla] openAsistenciaModal: no hay trabajadores en la tabla');
+            showToast('No puedes marcar asistencia. Primero agrega personal.', 'error', 6000);
             return;
         }
-        // Pre-chequeo: exigir que TODOS los trabajadores tengan pago por día > 0
+        try {
+            const p = await getBudgetPersonal();
+            console.log('[planilla] Presupuesto:', p);
+            if (p.remaining <= 0) {
+                console.log('[planilla] openAsistenciaModal: presupuesto agotado');
+                showToast('Se alcanzó el límite del presupuesto de Personal.', 'error', 6000);
+                return;
+            }
+            if (p.assigned > 0 && p.remaining <= p.assigned * 0.2) {
+                showToast('Falta 20% para alcanzar el límite del presupuesto de Personal.', 'warning', 6000);
+            }
+        } catch(e) { console.warn('[planilla] No se pudo verificar presupuesto antes de asistencia:', e); }
         const rows = Array.from(document.querySelectorAll('#trabajadores-table tr'));
         const todosConPagoDia = rows.length > 0 && rows.every(r => {
             const t = r.querySelector('td:nth-child(2)')?.textContent || '';
             const monto = parseFloat(t.replace('S/', '').replace(/,/g, '').trim()) || 0;
             return monto > 0;
         });
+        console.log('[planilla] Todos con pago_dia > 0:', todosConPagoDia);
         if (!todosConPagoDia) {
-            showSystemNotice('Primero agrega el monto que ganara por dia tu personal');
+            showToast('Primero agrega el monto que ganará por día tu personal', 'error', 6000);
             return;
         }
-        // Antes de abrir, consultar si ya se marcó hoy a nivel proyecto
-        fetch(`{{ route('proyectos.asistenciaStatus', ':proyectoId') }}`.replace(':proyectoId', proyectoId), {
-            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+        fetch(`${BASE}/admin/proyectos/${proyectoId}/asistencia/status`, {
+            headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            credentials: 'same-origin'
         }).then(r => r.json()).then(status => {
-            const errorBox = document.getElementById('asistencia-error');
+            console.log('[planilla] Estado asistencia:', status);
             if (status && status.today_marked) {
-                asistenciaBloqueadaHoy = true;
-                showSystemNotice('No puedes marcar la asistencia porque ya se marcó hoy. Espera hasta mañana.');
-                return; // no abrir modal
+                showToast('No puedes marcar la asistencia porque ya se marcó hoy. Espera hasta mañana.', 'error', 6000);
+                return;
             }
-            // Mostrar mensaje único: una vez marcada, hasta mañana
             document.getElementById('asistencia-warning').classList.remove('hidden');
-            // Construir lista de personal desde la tabla actual
             const cont = document.getElementById('asistencia-lista');
             const selectAll = document.getElementById('asistencia-select-all');
             if (cont) {
@@ -529,26 +933,33 @@
                 if (selectAll) selectAll.checked = false;
             }
             $('#asistencia-modal').modal('show');
-        }).catch(() => {
-            // Fallback: si falla el status, proceder a abrir modal normal
+        }).catch(err => {
+            console.error('[planilla] Error al verificar estado asistencia:', err);
+            showToast('Error al verificar estado de asistencia: ' + err.message, 'error', 6000);
             $('#asistencia-modal').modal('show');
         });
-    }
+    };
 
+    // Marcar asistencia
     function marcarAsistenciaHoy() {
-        const hoy = new Date().toISOString().slice(0,10);
+        console.log('[planilla] marcarAsistenciaHoy iniciado');
+        const hoy = new Date().toISOString().slice(0, 10);
         const errorBox = document.getElementById('asistencia-error');
         errorBox.classList.add('hidden');
-        // Marcar solo seleccionados
+        const totalRows = document.querySelectorAll('#trabajadores-table tr').length;
+        if (totalRows === 0) {
+            console.log('[planilla] marcarAsistenciaHoy: no hay trabajadores');
+            showToast('No puedes marcar asistencia. Primero agrega personal.', 'error', 6000);
+            return;
+        }
         const checks = Array.from(document.querySelectorAll('.asistencia-item:checked'));
         if (checks.length === 0) {
-            showTransientError('Selecciona al menos un trabajador.');
+            console.log('[planilla] marcarAsistenciaHoy: no se seleccionaron trabajadores');
+            showToast('Selecciona al menos un trabajador.', 'error', 6000);
             return;
         }
         const idToRow = {};
         document.querySelectorAll('#trabajadores-table tr').forEach(r => { idToRow[r.getAttribute('data-id')] = r; });
-        
-        // Validar que todos los seleccionados tengan pago por día > 0
         const anySinPagoDia = checks.some(chk => {
             const row = idToRow[chk.value];
             const pagoDiaText = row?.querySelector('td:nth-child(2)')?.textContent || '';
@@ -556,14 +967,13 @@
             return monto <= 0;
         });
         if (anySinPagoDia) {
-            showTransientError('Primero agrega el monto que ganara por dia tu personal');
+            console.log('[planilla] marcarAsistenciaHoy: algunos trabajadores sin pago_dia');
+            showToast('Primero agrega el monto que ganará por día tu personal', 'error', 6000);
             return;
         }
         const requests = checks.map(chk => {
             const planillaId = chk.value;
-            const url = `{{ route('proyectos.marcarAsistencia', ['proyecto' => ':proyectoId', 'planilla' => ':planillaId']) }}`
-                .replace(':proyectoId', proyectoId)
-                .replace(':planillaId', planillaId);
+            const url = `${BASE}/admin/proyectos/${proyectoId}/planilla/${planillaId}/marcar-asistencia`;
             return fetch(url, {
                 method: 'POST',
                 headers: {
@@ -571,61 +981,163 @@
                     'X-Requested-With': 'XMLHttpRequest',
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
+                credentials: 'same-origin',
                 body: JSON.stringify({ fecha: hoy })
             }).then(r => r.json().then(j => ({ ok: r.ok, status: r.status, body: j, row: idToRow[planillaId] })));
         });
         Promise.all(requests).then(results => {
+            console.log('[planilla] marcarAsistenciaHoy resultados:', results);
             const anyConflict = results.some(r => r.status === 409);
             const anySinPago = results.some(r => r.status === 422 && r.body && r.body.error);
+            const budgetErrors = results.filter(r => r.status === 400);
             const anySuccess = results.some(r => r.ok && r.body && r.body.success);
             if (anySuccess) {
-                asistenciaBloqueadaHoy = true;
                 showToast('Asistencia marcada correctamente', 'success', 5000);
             }
             if (anySinPago) {
-                showTransientError('Primero agrega el monto que ganara por dia tu personal');
+                showToast('Primero agrega el monto que ganará por día tu personal', 'error', 6000);
+            }
+            if (budgetErrors.length > 0) {
+                const msg = budgetErrors[0].body && budgetErrors[0].body.error ? budgetErrors[0].body.error : 'Se alcanzó el límite del presupuesto de Personal.';
+                showToast(msg, 'error', 6000);
             }
             if (anyConflict) {
-                showTransientError('No puedes marcar la asistencia porque ya se marcó hoy. Espera hasta mañana.');
+                showToast('No puedes marcar la asistencia porque ya se marcó hoy. Espera hasta mañana.', 'error', 6000);
             }
             if (!anyConflict && !anySinPago) {
                 $('#asistencia-modal').modal('hide');
             }
-            // Actualizar UI por fila marcada
             results.forEach(({ ok, body, row }) => {
                 if (ok && body && body.success) {
-                    // Columnas actuales: 1 nombre, 2 pago_dia, 3 días, 4 pago
                     const diasCell = row.querySelector('td:nth-child(3)');
                     const pagoCell = row.querySelector('td:nth-child(4)');
                     if (diasCell) diasCell.textContent = String(body.dias_trabajados ?? diasCell.textContent);
                     if (pagoCell) pagoCell.textContent = `S/${Number(body.pago ?? 0).toFixed(2)}`;
                 }
             });
+            refreshBudgetPersonal();
         }).catch(err => {
-            showTransientError('Error al marcar asistencia: ' + err.message);
+            console.error('[planilla] Error en marcarAsistenciaHoy:', err.message);
+            showToast('Error al marcar asistencia: ' + err.message, 'error', 6000);
         });
     }
 
-    function closeSueldosModal() { $('#sueldos-modal').modal('hide'); }
-    function toggleSeleccionAsistencia(cb){
-        const all = document.querySelectorAll('.asistencia-item');
-        all.forEach(x => x.checked = cb.checked);
+    // Confirmar sueldos
+    function confirmarSueldos() {
+        console.log('[planilla] confirmarSueldos iniciado');
+        const sueldosErrorEl = document.getElementById('sueldos-error');
+        sueldosErrorEl.classList.add('hidden');
+        const sueldoPorTrabajador = parseFloat(document.getElementById('sueldo-por-trabajador').textContent);
+        console.log('[planilla] Sueldo por trabajador:', sueldoPorTrabajador);
+        fetch(`/admin/proyectos/${proyectoId}/agregar-sueldos`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify({
+                proyecto_id: proyectoId,
+                sueldo_por_trabajador: sueldoPorTrabajador
+            })
+        })
+        .then(response => {
+            console.log('[planilla] confirmarSueldos respuesta:', response.status);
+            if (!response.ok) return response.text().then(t => { throw new Error('HTTP ' + response.status + ' - ' + t); });
+            return response.json();
+        })
+        .then(data => {
+            console.log('[planilla] confirmarSueldos éxito:', data);
+            if (data.success) {
+                document.querySelectorAll('#trabajadores-table tr').forEach(row => {
+                    const pagoCell = row.querySelector('td:nth-child(4)');
+                    if (pagoCell) pagoCell.textContent = `S/${sueldoPorTrabajador.toFixed(2)}`;
+                });
+                $('#sueldos-modal').modal('hide');
+                showToast('Sueldos agregados correctamente', 'success', 5000);
+            } else {
+                sueldosErrorEl.textContent = data.error || 'No se pudo aplicar sueldos';
+                sueldosErrorEl.classList.remove('hidden');
+                showToast(data.error || 'No se pudo aplicar sueldos', 'error', 6000);
+            }
+        })
+        .catch(err => {
+            console.error('[planilla] Error en confirmarSueldos:', err);
+            sueldosErrorEl.textContent = 'Error al confirmar sueldos: ' + err.message;
+            sueldosErrorEl.classList.remove('hidden');
+            showToast('Error al confirmar sueldos: ' + err.message, 'error', 6000);
+        });
     }
 
-    // Notificación roja temporal (toast 5s)
-    function showTransientError(message){
-        showToast(message, 'error', 5000);
+    // Eliminar trabajador
+    let pendingDeleteId = null;
+    function removeTrabajador(planillaId) {
+        console.log('[planilla] removeTrabajador:', { planillaId });
+        pendingDeleteId = planillaId;
+        openDeleteModal();
     }
 
-    // Notificación de sistema (toast 5s)
-    function showSystemNotice(message){
-        showToast(message, 'error', 5000);
+    function openDeleteModal() {
+        console.log('[planilla] openDeleteModal');
+        const err = document.getElementById('delete-error-message');
+        if (err) err.classList.add('hidden');
+        $('#eliminar-modal').modal('show');
+    }
+
+    function confirmDeleteTrabajador() {
+        console.log('[planilla] confirmDeleteTrabajador:', { pendingDeleteId });
+        if (!pendingDeleteId) {
+            showToast('No se seleccionó un trabajador para eliminar.', 'error', 6000);
+            return;
+        }
+        const planillaId = pendingDeleteId;
+        const url = `${BASE}/admin/proyectos/${proyectoId}/remove-planilla/${planillaId}`;
+        const row = document.querySelector(`#trabajadores-table tr[data-id="${planillaId}"]`);
+        const nombre = row ? row.querySelector('td:first-child')?.textContent?.trim() || 'Trabajador' : 'Trabajador';
+        fetch(url, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content || '{{ csrf_token() }}'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            console.log('[planilla] confirmDeleteTrabajador respuesta:', response.status);
+            if (!response.ok) {
+                return response.text().then(text => {
+                    console.error('Respuesta del servidor:', text);
+                    throw new Error(`Error ${response.status}: ${text.substring(0, 100)}...`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('[planilla] confirmDeleteTrabajador éxito:', data);
+            if (row) row.remove();
+            updateResumen();
+            refreshBudgetPersonal();
+            $('#eliminar-modal').modal('hide');
+            showToast(`Trabajador ${escapeHtml(nombre)} eliminado correctamente`, 'success', 5000);
+            pendingDeleteId = null;
+        })
+        .catch(error => {
+            console.error('[planilla] Error en confirmDeleteTrabajador:', error);
+            const err = document.getElementById('delete-error-message');
+            if (err) {
+                err.textContent = 'Error al eliminar: ' + (error.message || 'Error desconocido');
+                err.classList.remove('hidden');
+            }
+            showToast(`Error al eliminar: ${error.message}`, 'error', 6000);
+        });
     }
 
     // Toasts flotantes
-    function getToastContainer(){
+    function getToastContainer() {
         let c = document.getElementById('toast-container');
-        if (!c){
+        if (!c) {
             c = document.createElement('div');
             c.id = 'toast-container';
             c.style.position = 'fixed';
@@ -640,10 +1152,14 @@
         return c;
     }
 
-    function showToast(message, type = 'info', duration = 5000){
+    function showToast(message, type = 'info', duration = 5000) {
+        console.log('[planilla] showToast:', { message, type, duration });
         const container = getToastContainer();
         const toast = document.createElement('div');
-        toast.className = `alert ${type === 'error' ? 'alert-danger' : (type === 'success' ? 'alert-success' : 'alert-info')}`;
+        toast.className = `alert ${
+            type === 'error' ? 'alert-danger' : (
+            type === 'success' ? 'alert-success' : (
+            type === 'warning' ? 'alert-warning' : 'alert-info'))}`;
         toast.style.minWidth = '280px';
         toast.style.maxWidth = '420px';
         toast.style.margin = '0';
@@ -659,234 +1175,70 @@
         }, Math.max(1000, duration));
     }
 
-    function confirmarSueldos() {
-        const sueldosErrorEl = document.getElementById('sueldos-error');
-        sueldosErrorEl.classList.add('hidden');
-
-        // Tomamos el sueldo por trabajador calculado en el modal
-        const sueldoPorTrabajador = parseFloat(document.getElementById('sueldo-por-trabajador').textContent);
-
-        fetch(`{{ route('proyectos.agregarSueldos', ':proyectoId') }}`.replace(':proyectoId', proyectoId), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
-            },
-            credentials: 'same-origin',
-            body: JSON.stringify({
-                proyecto_id: proyectoId,
-                sueldo_por_trabajador: sueldoPorTrabajador
-            })
-        })
-        .then(response => {
-            if (!response.ok) return response.text().then(t => { throw new Error('HTTP ' + response.status + ' - ' + t); });
-            return response.json();
-        })
-        .then(data => {
-            if (data.success) {
-                // Actualizar en la vista sin recargar: aplicar sueldo por trabajador a cada fila (columna Pago)
-                const sueldo = sueldoPorTrabajador.toFixed(2);
-                document.querySelectorAll('#trabajadores-table tr').forEach(row => {
-                    const pagoCell = row.querySelector('td:nth-child(2)');
-                    if (pagoCell) pagoCell.textContent = `S/${sueldo}`;
-                });
-                closeSueldosModal();
-            } else {
-                sueldosErrorEl.textContent = data.error || 'No se pudo aplicar sueldos';
-                sueldosErrorEl.classList.remove('hidden');
-            }
-        })
-        .catch(err => {
-            console.error('Error al confirmar sueldos:', err);
-            sueldosErrorEl.textContent = 'Error al confirmar sueldos: ' + err.message;
-            sueldosErrorEl.classList.remove('hidden');
-        });
+    // Seleccionar todos los checkboxes de asistencia
+    function toggleSeleccionAsistencia(cb) {
+        console.log('[planilla] toggleSeleccionAsistencia:', cb.checked);
+        const all = document.querySelectorAll('.asistencia-item');
+        all.forEach(x => x.checked = cb.checked);
     }
 
-
-    function removeTrabajador(planillaId) {
-        pendingDeleteId = planillaId;
-        openDeleteModal();
-    }
-
-    function openDeleteModal() {
-        const err = document.getElementById('delete-error-message');
-        if (err) err.classList.add('hidden');
-        $('#eliminar-modal').modal('show');
-    }
-
-    function closeDeleteModal() {
-        $('#eliminar-modal').modal('hide');
-        pendingDeleteId = null;
-    }
-
-    function confirmDeleteTrabajador() {
-        if (!pendingDeleteId) return;
-        const planillaId = pendingDeleteId;
-        const url = `{{ route('proyectos.removePlanilla', ['proyecto' => ':proyectoId', 'planilla' => ':planillaId']) }}`
-            .replace(':proyectoId', proyectoId)
-            .replace(':planillaId', planillaId);
-
-        fetch(url, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Requested-With': 'XMLHttpRequest',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content || '{{ csrf_token() }}'
-            }
-        })
-        .then(response => {
-            if (!response.ok) {
-                return response.text().then(text => {
-                    console.error('Respuesta del servidor:', text);
-                    throw new Error(`Error ${response.status}: ${text.substring(0, 100)}...`);
-                });
-            }
-            return response.json();
-        })
-        .then(data => {
-            const row = document.querySelector(`#trabajadores-table tr[data-id="${planillaId}"]`);
-            if (row) row.remove();
-            updateResumen();
-            closeDeleteModal();
-        })
-        .catch(error => {
-            console.error('Error en confirmDeleteTrabajador:', error);
-            const err = document.getElementById('delete-error-message');
-            if (err) {
-                err.textContent = 'Error al eliminar: ' + (error.message || 'Error desconocido');
-                err.classList.remove('hidden');
-            }
-        });
-    }
-
-    function updateResumen() {
-        const ocupadas = document.querySelectorAll('#trabajadores-table tr').length;
-        const plazas = {{ $proyecto->cantidad_trabajadores }};
-        const plazasOcupadasEl = document.getElementById('plazas-ocupadas');
-        const trabajadoresAdicionalesEl = document.getElementById('trabajadores-adicionales');
-        if (plazasOcupadasEl) plazasOcupadasEl.textContent = ocupadas;
-        if (trabajadoresAdicionalesEl) trabajadoresAdicionalesEl.textContent = ocupadas > plazas ? ocupadas - plazas : 0;
-        // gráfico removido
-    }
-
-    function initializeUpdateModalEvents() {
-        document.querySelectorAll('.open-update-modal').forEach(button => {
-            button.removeEventListener('click', handleUpdateModalClick);
-            button.addEventListener('click', handleUpdateModalClick);
-        });
-    }
-
-    function initializeDetailsModalEvents() {
-        document.querySelectorAll('.open-details-modal').forEach(button => {
-            button.removeEventListener('click', handleDetailsModalClick);
-            button.addEventListener('click', handleDetailsModalClick);
-        });
-    }
-
-    function handleDetailsModalClick(event) {
-        event.preventDefault();
-        const btn = event.currentTarget;
-        openDetailsModal({
-            nombre: btn.dataset.nombre || '',
-            dni: btn.dataset.dni || '',
-            pago: btn.dataset.pago || '0.00',
-            alimentacion: btn.dataset.alimentacion || '0.00',
-            hospedaje: btn.dataset.hospedaje || '0.00',
-            pasajes: btn.dataset.pasajes || '0.00',
-            estado: btn.dataset.estado || ''
-        });
-    }
-
-    function openDetailsModal(data) {
-        const modal = document.getElementById('detalles-modal');
-        if (!modal) return;
-        document.getElementById('detalle-nombre').textContent = data.nombre;
-        document.getElementById('detalle-dni').textContent = data.dni;
-        document.getElementById('detalle-pago').textContent = data.pago;
-        document.getElementById('detalle-alimentacion').textContent = data.alimentacion;
-        document.getElementById('detalle-hospedaje').textContent = data.hospedaje;
-        document.getElementById('detalle-pasajes').textContent = data.pasajes;
-        document.getElementById('detalle-estado').textContent = data.estado;
-        $('#detalles-modal').modal('show');
-    }
-
-    function closeDetailsModal() {
-        $('#detalles-modal').modal('hide');
-    }
-
-    function handleUpdateModalClick(event) {
-        event.preventDefault();
-        const planillaId = this.dataset.planillaId;
-        openUpdateModal(planillaId);
-    }
-
-    const updateForm = document.getElementById('update-form');
-    if (updateForm) {
-        updateForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const planillaId = document.getElementById('update_planilla_id').value;
-            const alimentacion = document.getElementById('alimentacion_trabajador').value;
-            const hospedaje = document.getElementById('hospedaje_trabajador').value;
-            const pasajes = document.getElementById('pasajes_trabajador').value;
-            const errorMessage = document.getElementById('update-error-message');
-            const url = `{{ route('proyectos.updatePlanillaGastos', ['proyecto' => ':proyectoId', 'planilla' => ':planillaId']) }}`
-                .replace(':proyectoId', proyectoId)
-                .replace(':planillaId', planillaId);
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                },
-                body: JSON.stringify({
-                    alimentacion_trabajador: parseFloat(alimentacion) || 0,
-                    hospedaje_trabajador: parseFloat(hospedaje) || 0,
-                    pasajes_trabajador: parseFloat(pasajes) || 0
-                })
-            })
-            .then(response => {
-                if (!response.ok) throw new Error('Error al actualizar los gastos');
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    const row = document.querySelector(`#trabajadores-table tr[data-id="${planillaId}"]`);
-                    if (row) {
-                        row.querySelector('td:nth-child(3)').textContent = `S/${Number(data.alimentacion_trabajador).toFixed(2)}`;
-                        row.querySelector('td:nth-child(4)').textContent = `S/${Number(data.hospedaje_trabajador).toFixed(2)}`;
-                        row.querySelector('td:nth-child(5)').textContent = `S/${Number(data.pasajes_trabajador).toFixed(2)}`;
-                    }
-                    closeUpdateModal();
-                } else {
-                    errorMessage.textContent = data.error || 'Error al actualizar los gastos';
-                    errorMessage.classList.remove('hidden');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                errorMessage.textContent = error.message;
-                errorMessage.classList.remove('hidden');
-            });
-        });
-    }
-
+    // Inicialización
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('[planilla] DOMContentLoaded');
+        const btnAdd = document.getElementById('btn-add-trabajador');
+        console.log('[planilla] Estado inicial btn-add-trabajador:', {
+            exists: !!btnAdd,
+            disabled: btnAdd ? btnAdd.disabled : null
+        });
+
         initializeUpdateModalEvents();
         initializeDetailsModalEvents();
 
-        // Resetear formularios al cerrar modales (Bootstrap)
+        const addForm = document.getElementById('add-trabajador-form');
+        if (addForm) {
+            addForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                console.log('[planilla] Formulario enviado');
+                window.addTrabajador();
+            });
+            addForm.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    console.log('[planilla] Enter bloqueado, llamando addTrabajador');
+                    window.addTrabajador();
+                }
+            });
+        }
+
+        $(document).ready(function() {
+            $('#btn-add-trabajador').off('click').on('click', function(e) {
+                e.preventDefault();
+                console.log('[planilla] jQuery click en btn-add-trabajador');
+                window.addTrabajador();
+            });
+            $('#confirm-delete-btn').off('click').on('click', function(e) {
+                e.preventDefault();
+                console.log('[planilla] jQuery click en confirm-delete-btn');
+                confirmDeleteTrabajador();
+            });
+        });
+
+        $('#trabajadores-modal').on('shown.bs.modal', function () {
+            const sel = document.getElementById('trabajador_id');
+            if (sel && !sel.value && sel.options.length > 1) {
+                sel.selectedIndex = 1;
+            }
+        });
+
+        $('#trabajadores-modal').on('hidden.bs.modal', function () {
+            const errorMessage = document.getElementById('trabajadores-error-message');
+            if (errorMessage) errorMessage.classList.add('hidden');
+        });
+
         $('#update-modal').on('hidden.bs.modal', function () {
             const form = document.getElementById('update-form');
             const errorMessage = document.getElementById('update-error-message');
             if (form) form.reset();
-            if (errorMessage) errorMessage.classList.add('hidden');
-        });
-
-        $('#trabajadores-modal').on('hidden.bs.modal', function () {
-            const errorMessage = document.getElementById('error-message');
             if (errorMessage) errorMessage.classList.add('hidden');
         });
 
@@ -895,11 +1247,23 @@
             if (errorMessage) errorMessage.classList.add('hidden');
         });
 
-        // Botón Marcar Asistencia
-        const asistenciaBtn = document.getElementById('marcar-asistencia-btn');
-        if (asistenciaBtn) asistenciaBtn.addEventListener('click', openAsistenciaModal);
+        $('#eliminar-modal').on('hidden.bs.modal', function () {
+            const errorMessage = document.getElementById('delete-error-message');
+            if (errorMessage) errorMessage.classList.add('hidden');
+            pendingDeleteId = null;
+        });
 
-        // Bootstrap maneja Escape y clic fuera automáticamente
+        const asistenciaBtn = document.getElementById('marcar-asistencia-btn');
+        if (asistenciaBtn) {
+            const fn = window.openAsistenciaModal;
+            if (typeof fn === 'function') {
+                asistenciaBtn.addEventListener('click', fn);
+            } else if (window.$ && typeof $('#asistencia-modal').modal === 'function') {
+                asistenciaBtn.addEventListener('click', function() { $('#asistencia-modal').modal('show'); });
+            }
+        }
+
+        refreshBudgetPersonal();
     });
 </script>
 
@@ -1062,6 +1426,16 @@
     .planilla-custom-modal .modal-header {
         border-top-left-radius: 0 !important;
         border-top-right-radius: 0 !important;
+    }
+    #btn-add-trabajador {
+    pointer-events: auto !important;
+    cursor: pointer !important;
+    }
+    .hidden {
+        display: none;
+    }
+    .alert {
+        margin-bottom: 0;
     }
 </style>
 @endpush

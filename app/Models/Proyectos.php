@@ -76,4 +76,10 @@ class Proyectos extends Model
     {
         return $this->hasMany(Asistencia::class, 'id_proyecto', 'id_proyecto');
     }
+
+    // Usar id_proyecto para Route Model Binding
+    public function getRouteKeyName()
+    {
+        return 'id_proyecto';
+    }
 }

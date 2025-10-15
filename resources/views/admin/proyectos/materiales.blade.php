@@ -4,11 +4,29 @@
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-3xl font-bold text-gray-700">Gestión de Materiales</h2>
         <button id="add-material-btn" 
-                data-toggle="modal" 
-                data-target="#addMaterialModal" 
+                onclick="openAddMaterialWithCheck()"
                 class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-full text-xl transition duration-300 flex items-center">
             <i class="fas fa-plus-circle mr-2 text-2xl"></i>Agregar Material
         </button>
+    </div>
+
+    <!-- Presupuesto de Materiales -->
+    <div class="bg-white shadow rounded-lg p-4 mb-4">
+        <h3 class="text-xl font-semibold text-gray-700 mb-2">Presupuesto Materiales</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <span class="text-gray-500">Asignado</span>
+                <div class="text-2xl font-bold">S/<span id="mat-assigned">{{ isset($budgetMaterials['assigned']) ? number_format($budgetMaterials['assigned'], 2) : '0.00' }}</span></div>
+            </div>
+            <div>
+                <span class="text-gray-500">Gastado</span>
+                <div class="text-2xl font-bold text-red-600">S/<span id="mat-spent">{{ isset($budgetMaterials['spent']) ? number_format($budgetMaterials['spent'], 2) : '0.00' }}</span></div>
+            </div>
+            <div>
+                <span class="text-gray-500">Restante</span>
+                <div class="text-2xl font-bold text-green-600">S/<span id="mat-remaining">{{ isset($budgetMaterials['remaining']) ? number_format($budgetMaterials['remaining'], 2) : '0.00' }}</span></div>
+            </div>
+        </div>
     </div>
 
     <div id="material-error" class="hidden text-red-600 mb-4 text-lg"></div>
@@ -270,6 +288,92 @@
 </style>
 
 <script>
+// Presupuesto: Materiales
+async function refreshBudgetMaterials() {
+    try {
+        const res = await fetch(`/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+        if (!res.ok) throw new Error('No se pudo obtener el presupuesto');
+        const data = await res.json();
+        const m = data.materials || { assigned:0, spent:0, remaining:0 };
+        const asg = document.getElementById('mat-assigned');
+        const sp  = document.getElementById('mat-spent');
+        const rem = document.getElementById('mat-remaining');
+        if (asg) asg.textContent = Number(m.assigned).toFixed(2);
+        if (sp)  sp.textContent  = Number(m.spent).toFixed(2);
+        if (rem) rem.textContent = Number(m.remaining).toFixed(2);
+    } catch(e){ console.error(e); }
+}
+
+// Inicializar presupuesto al cargar este fragmento
+refreshBudgetMaterials();
+
+// Toast utility (define if not already present)
+if (typeof window.showToast !== 'function') {
+    (function(){
+        function getToastContainer(){
+            let c = document.getElementById('toast-container');
+            if (!c){
+                c = document.createElement('div');
+                c.id = 'toast-container';
+                c.style.position = 'fixed';
+                c.style.top = '16px';
+                c.style.right = '16px';
+                c.style.zIndex = '9999';
+                c.style.display = 'flex';
+                c.style.flexDirection = 'column';
+                c.style.gap = '8px';
+                document.body.appendChild(c);
+            }
+            return c;
+        }
+        window.showToast = function(message, type = 'info', duration = 5000){
+            const container = getToastContainer();
+            const toast = document.createElement('div');
+            const cls = type === 'error' ? 'alert-danger' : (type === 'success' ? 'alert-success' : (type === 'warning' ? 'alert-warning' : 'alert-info'));
+            toast.className = `alert ${cls}`;
+            toast.style.minWidth = '280px';
+            toast.style.maxWidth = '420px';
+            toast.style.margin = '0';
+            toast.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+            toast.style.opacity = '1';
+            toast.setAttribute('role', 'alert');
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.transition = 'opacity 300ms ease';
+                toast.style.opacity = '0';
+                setTimeout(() => { toast.remove(); }, 320);
+            }, Math.max(1000, duration));
+        }
+    })();
+}
+
+async function getBudgetMaterialsSummary(){
+    const res = await fetch(`/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+    if (!res.ok) throw new Error('No se pudo obtener presupuesto');
+    const data = await res.json();
+    return data && data.materials ? data.materials : { assigned:0, spent:0, remaining:0 };
+}
+
+async function openAddMaterialWithCheck(){
+    try {
+        const m = await getBudgetMaterialsSummary();
+        if (m.remaining <= 0) {
+            showToast('Se alcanzó el límite del presupuesto de Materiales.', 'error', 6000);
+            return false;
+        }
+        if (m.assigned > 0 && m.remaining <= m.assigned * 0.2) {
+            showToast('Aviso: queda 20% o menos del presupuesto de Materiales.', 'warning', 6000);
+        }
+        openMaterialModal();
+        return true;
+    } catch(e) {
+        console.warn('No se pudo verificar presupuesto antes de abrir modal de Materiales:', e);
+        openMaterialModal();
+        return true;
+    }
+}
+
 // Open Add Material Modal
 function openMaterialModal() {
     console.log('Opening addMaterialModal');
@@ -371,9 +475,21 @@ function updateTable(data) {
 }
 
 // Handle add material form submission
-document.getElementById('addMaterialForm').addEventListener('submit', function(e) {
+document.getElementById('addMaterialForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const formData = new FormData(this);
+    // Pre-chequeo de presupuesto
+    try {
+        const m = await getBudgetMaterialsSummary();
+        const montoNuevo = parseFloat(formData.get('monto_mat')) || 0;
+        if (montoNuevo > (m.remaining || 0) + 1e-6) {
+            showToast('No se puede agregar el material: se supera el límite del presupuesto de Materiales.', 'error', 7000);
+            return;
+        }
+        if ((m.assigned || 0) > 0 && (m.remaining - montoNuevo) <= (m.assigned * 0.2)) {
+            showToast('Aviso: con este registro, quedarás a menos del 20% del presupuesto de Materiales.', 'warning', 6000);
+        }
+    } catch(e) { console.warn('No se pudo validar presupuesto en cliente (Materiales):', e); }
     fetch(`/admin/proyectos/{{ $proyecto->id_proyecto }}/materiales`, {
         method: 'POST',
         headers: {
@@ -391,14 +507,15 @@ document.getElementById('addMaterialForm').addEventListener('submit', function(e
         return response.json();
     })
     .then(data => {
-        alert(data.message);
+        showToast(data.message || 'Material agregado correctamente.', 'success', 5000);
         $('#addMaterialModal').modal('hide');
         updateTable(data.material);
         this.reset();
+        refreshBudgetMaterials();
     })
     .catch(error => {
         console.error('Error:', error);
-        alert(error.message);
+        showToast(error.message, 'error', 6000);
     });
 });
 
@@ -424,7 +541,7 @@ document.getElementById('editMaterialForm').addEventListener('submit', function(
         return response.json();
     })
     .then(data => {
-        alert(data.message);
+        showToast(data.message || 'Material actualizado correctamente.', 'success', 5000);
         $('#editMaterialModal').modal('hide');
         const row = document.querySelector(`tr[data-id="${data.material.id_material}"]`);
         if (row) {
@@ -473,10 +590,11 @@ document.getElementById('deleteMaterialForm').addEventListener('submit', functio
         return response.json();
     })
     .then(data => {
-        alert(data.message);
+        showToast(data.message || 'Material eliminado correctamente.', 'success', 5000);
         $('#confirmDeleteMaterialModal').modal('hide');
         const row = document.querySelector(`tr[data-id="${data.material_id}"]`);
         if (row) row.remove();
+        refreshBudgetMaterials();
     })
     .catch(error => {
         console.error('Error:', error);

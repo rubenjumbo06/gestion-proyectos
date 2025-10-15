@@ -7,6 +7,7 @@ use App\Models\Fechapr;
 use App\Models\Montopr;
 use App\Models\Planilla;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\DB;
 
 class ProyectosObserver
 {
@@ -24,12 +25,26 @@ class ProyectosObserver
                 'fecha_fin_true' => null,
             ]);
 
-            // Insert into montopr table
-            $monto = request()->input('monto');
+            // Calcular total y guardar en montopr
+            $montoMaterial = (float) request()->input('monto_material', 0);
+            $montoOperativos = (float) request()->input('monto_operativos', 0);
+            $montoServicios = (float) request()->input('monto_servicios', 0);
+            $montoTotal = $montoMaterial + $montoOperativos + $montoServicios;
+
             Montopr::create([
                 'proyecto_id' => $proyecto->id_proyecto,
-                'monto_inicial' => $monto ?? 0,
-                'monto_deseado' => $monto ?? 0,
+                'monto_inicial' => $montoTotal,
+                'monto_deseado' => $montoTotal,
+            ]);
+
+            // Insertar montos apartados por proyecto
+            DB::table('montos_apartados')->insert([
+                'id_proyecto' => $proyecto->id_proyecto,
+                'monto_material' => $montoMaterial,
+                'monto_operativos' => $montoOperativos,
+                'monto_servicios' => $montoServicios,
+                'fecha_creacion' => now(),
+                'updated_at' => null,
             ]);
 
             // Insert into planilla table for each selected trabajador
