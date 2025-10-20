@@ -1871,7 +1871,6 @@ public function destroyMaterial($proyecto, $id)
 
             $personalGastado = (float) DB::table('planilla')
                 ->where('id_proyecto', $proyecto->id_proyecto)
-                ->whereNull('deleted_at')
                 ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador),0) AS total')
                 ->value('total');
 

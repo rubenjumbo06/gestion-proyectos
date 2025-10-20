@@ -89,7 +89,7 @@
                                         <button type="button" class="open-update-modal btn btn-warning btn-xs" data-planilla-id="{{ $planillaItem->id_planilla }}">
                                             <i class="fa fa-edit action-icon"></i>
                                         </button>
-                                        <button type="button" class="btn btn-danger btn-xs" onclick="removeTrabajador({{ $planillaItem->id_planilla }})">
+                                        <button type="button" class="btn btn-danger btn-xs" onclick="removeTrabajador({{ $planillaItem->id_planilla }}, event)">
                                             <i class="fa fa-trash action-icon"></i>
                                         </button>
                                         <!-- <button type="button" class="btn btn-info btn-xs open-details-modal"
@@ -309,7 +309,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-                <button type="button" class="btn btn-danger" id="confirm-delete-btn" onclick="confirmDeleteTrabajador()">Eliminar</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">Eliminar</button>
             </div>
         </div>
     </div>
@@ -317,12 +317,26 @@
 </div>
 <script>
     // Verificar que el script se carga
-    console.log('[planilla.blade.php] Script iniciado');
+    console.log('[planilla.blade.php] Script iniciado a las', new Date().toLocaleString());
 
     // Fallbacks para UI
     window.showToast = typeof window.showToast === 'function' ? window.showToast : function(msg, type, ms) { console.log('[toast]', type || 'info', msg); };
     window.showSystemNotice = function(msg) { showToast(msg, 'info', 5000); };
     window.showTransientError = function(msg) { showToast(msg, 'error', 6000); };
+
+    // Interceptar alert y confirm para depurar y bloquear
+    const originalAlert = window.alert;
+    window.alert = function(message) {
+        console.error('[planilla] ALERT DETECTADO a las', new Date().toLocaleString(), ':', message);
+        showToast('Alerta no esperada detectada: ' + message, 'error', 6000);
+        return false;
+    };
+    const originalConfirm = window.confirm;
+    window.confirm = function(message) {
+        console.error('[planilla] CONFIRM DETECTADO a las', new Date().toLocaleString(), ':', message);
+        showToast('Confirmación no esperada detectada: ' + message, 'error', 6000);
+        return false;
+    };
 
     // Variables globales
     const proyectoId = {{ $proyecto->id_proyecto }};
@@ -638,7 +652,7 @@
                         <button type="button" class="btn btn-warning btn-xs open-update-modal" data-planilla-id="${data.id}">
                             <i class="fa fa-edit action-icon"></i>
                         </button>
-                        <button type="button" class="btn btn-danger btn-xs" onclick="removeTrabajador(${data.id})">
+                        <button type="button" class="btn btn-danger btn-xs" onclick="removeTrabajador(${data.id}, event)">
                             <i class="fa fa-trash action-icon"></i>
                         </button>
                     </td>
@@ -745,6 +759,7 @@
         if (isNaN(pagoDia) || pagoDia < 0) {
             errorBox.textContent = 'Ingrese un monto válido.';
             errorBox.classList.remove('hidden');
+            showToast('Ingrese un monto válido.', 'error', 6000);
             return;
         }
         const url = `${BASE}/admin/proyectos/${proyectoId}/planilla/${planillaId}/pago-dia`;
@@ -1072,32 +1087,64 @@
 
     // Eliminar trabajador
     let pendingDeleteId = null;
-    function removeTrabajador(planillaId) {
-        console.log('[planilla] removeTrabajador:', { planillaId });
+    function removeTrabajador(planillaId, event) {
+        // Manejar caso donde event no esté definido (por ejemplo, si se llama directamente)
+        if (event) {
+            event.preventDefault();
+            console.log('[planilla] removeTrabajador a las', new Date().toLocaleString(), ':', { planillaId, eventType: event.type, target: event.target.tagName });
+        } else {
+            console.warn('[planilla] removeTrabajador llamado sin evento a las', new Date().toLocaleString(), ':', { planillaId });
+        }
+        if (typeof planillaId !== 'number' || isNaN(planillaId)) {
+            console.error('[planilla] ID inválido en removeTrabajador a las', new Date().toLocaleString(), ':', planillaId);
+            showToast('ID de trabajador inválido.', 'error', 6000);
+            return;
+        }
         pendingDeleteId = planillaId;
-        openDeleteModal();
+        console.log('[planilla] Intentando abrir modal de eliminación a las', new Date().toLocaleString(), ':', { pendingDeleteId });
+        try {
+            const modal = document.getElementById('eliminar-modal');
+            if (!modal) {
+                console.error('[planilla] Modal #eliminar-modal no encontrado a las', new Date().toLocaleString());
+                showToast('El modal de eliminación no está disponible. Recarga la página.', 'error', 6000);
+                return;
+            }
+            openDeleteModal();
+        } catch (e) {
+            console.error('[planilla] Error al abrir modal a las', new Date().toLocaleString(), ':', e.message);
+            showToast('Error al abrir el modal de eliminación.', 'error', 6000);
+        }
     }
 
     function openDeleteModal() {
-        console.log('[planilla] openDeleteModal');
+        console.log('[planilla] openDeleteModal a las', new Date().toLocaleString());
         const err = document.getElementById('delete-error-message');
         if (err) err.classList.add('hidden');
-        $('#eliminar-modal').modal('show');
+        const modal = $('#eliminar-modal');
+        if (modal.length) {
+            modal.modal('show');
+        } else {
+            console.error('[planilla] Modal #eliminar-modal no encontrado en jQuery a las', new Date().toLocaleString());
+            showToast('El modal de eliminación no está disponible. Recarga la página.', 'error', 6000);
+        }
     }
 
     function confirmDeleteTrabajador() {
-        console.log('[planilla] confirmDeleteTrabajador:', { pendingDeleteId });
+        console.log('[planilla] confirmDeleteTrabajador a las', new Date().toLocaleString(), ':', { pendingDeleteId });
         if (!pendingDeleteId) {
             showToast('No se seleccionó un trabajador para eliminar.', 'error', 6000);
+            $('#eliminar-modal').modal('hide');
             return;
         }
         const planillaId = pendingDeleteId;
         const url = `${BASE}/admin/proyectos/${proyectoId}/remove-planilla/${planillaId}`;
         const row = document.querySelector(`#trabajadores-table tr[data-id="${planillaId}"]`);
         const nombre = row ? row.querySelector('td:first-child')?.textContent?.trim() || 'Trabajador' : 'Trabajador';
+        
         fetch(url, {
             method: 'DELETE',
             headers: {
+                'Accept': 'application/json',
                 'Content-Type': 'application/json',
                 'X-Requested-With': 'XMLHttpRequest',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content || '{{ csrf_token() }}'
@@ -1105,26 +1152,48 @@
             credentials: 'same-origin'
         })
         .then(response => {
-            console.log('[planilla] confirmDeleteTrabajador respuesta:', response.status);
-            if (!response.ok) {
+            console.log('[planilla] confirmDeleteTrabajador respuesta a las', new Date().toLocaleString(), ':', { 
+                status: response.status, 
+                ok: response.ok, 
+                redirected: response.redirected, 
+                url: response.url,
+                headers: [...response.headers.entries()]
+            });
+            if (response.redirected) {
+                console.warn('[planilla] Redirección detectada a las', new Date().toLocaleString(), ':', response.url);
+                showToast('El servidor intentó redirigir. Verifica la configuración del servidor.', 'error', 6000);
+                throw new Error('Redirección no esperada');
+            }
+            const ct = (response.headers.get('content-type') || '').toLowerCase();
+            console.log('[planilla] Content-Type a las', new Date().toLocaleString(), ':', ct);
+            if (!ct.includes('application/json')) {
                 return response.text().then(text => {
-                    console.error('Respuesta del servidor:', text);
-                    throw new Error(`Error ${response.status}: ${text.substring(0, 100)}...`);
+                    console.error('[planilla] Respuesta no JSON a las', new Date().toLocaleString(), ':', text.substring(0, 200));
+                    throw new Error('Respuesta no es JSON válida: ' + text.substring(0, 100));
+                });
+            }
+            if (!response.ok) {
+                return response.json().then(j => {
+                    throw new Error(j.error || `Error ${response.status}: Error desconocido`);
                 });
             }
             return response.json();
         })
         .then(data => {
-            console.log('[planilla] confirmDeleteTrabajador éxito:', data);
-            if (row) row.remove();
-            updateResumen();
-            refreshBudgetPersonal();
-            $('#eliminar-modal').modal('hide');
-            showToast(`Trabajador ${escapeHtml(nombre)} eliminado correctamente`, 'success', 5000);
-            pendingDeleteId = null;
+            console.log('[planilla] confirmDeleteTrabajador éxito a las', new Date().toLocaleString(), ':', data);
+            if (data.success) {
+                if (row) row.remove();
+                updateResumen();
+                refreshBudgetPersonal();
+                $('#eliminar-modal').modal('hide');
+                showToast(`Trabajador ${escapeHtml(nombre)} eliminado correctamente`, 'success', 5000);
+                pendingDeleteId = null;
+            } else {
+                throw new Error(data.error || 'Error al eliminar el trabajador');
+            }
         })
         .catch(error => {
-            console.error('[planilla] Error en confirmDeleteTrabajador:', error);
+            console.error('[planilla] Error en confirmDeleteTrabajador a las', new Date().toLocaleString(), ':', error.message);
             const err = document.getElementById('delete-error-message');
             if (err) {
                 err.textContent = 'Error al eliminar: ' + (error.message || 'Error desconocido');
@@ -1153,7 +1222,7 @@
     }
 
     function showToast(message, type = 'info', duration = 5000) {
-        console.log('[planilla] showToast:', { message, type, duration });
+        console.log('[planilla] showToast a las', new Date().toLocaleString(), ':', { message, type, duration });
         const container = getToastContainer();
         const toast = document.createElement('div');
         toast.className = `alert ${
@@ -1177,16 +1246,16 @@
 
     // Seleccionar todos los checkboxes de asistencia
     function toggleSeleccionAsistencia(cb) {
-        console.log('[planilla] toggleSeleccionAsistencia:', cb.checked);
+        console.log('[planilla] toggleSeleccionAsistencia a las', new Date().toLocaleString(), ':', cb.checked);
         const all = document.querySelectorAll('.asistencia-item');
         all.forEach(x => x.checked = cb.checked);
     }
 
     // Inicialización
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('[planilla] DOMContentLoaded');
+        console.log('[planilla] DOMContentLoaded a las', new Date().toLocaleString());
         const btnAdd = document.getElementById('btn-add-trabajador');
-        console.log('[planilla] Estado inicial btn-add-trabajador:', {
+        console.log('[planilla] Estado inicial btn-add-trabajador a las', new Date().toLocaleString(), ':', {
             exists: !!btnAdd,
             disabled: btnAdd ? btnAdd.disabled : null
         });
@@ -1198,13 +1267,13 @@
         if (addForm) {
             addForm.addEventListener('submit', function(e) {
                 e.preventDefault();
-                console.log('[planilla] Formulario enviado');
+                console.log('[planilla] Formulario enviado a las', new Date().toLocaleString());
                 window.addTrabajador();
             });
             addForm.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
-                    console.log('[planilla] Enter bloqueado, llamando addTrabajador');
+                    console.log('[planilla] Enter bloqueado, llamando addTrabajador a las', new Date().toLocaleString());
                     window.addTrabajador();
                 }
             });
@@ -1213,13 +1282,20 @@
         $(document).ready(function() {
             $('#btn-add-trabajador').off('click').on('click', function(e) {
                 e.preventDefault();
-                console.log('[planilla] jQuery click en btn-add-trabajador');
+                console.log('[planilla] jQuery click en btn-add-trabajador a las', new Date().toLocaleString());
                 window.addTrabajador();
             });
             $('#confirm-delete-btn').off('click').on('click', function(e) {
                 e.preventDefault();
-                console.log('[planilla] jQuery click en confirm-delete-btn');
+                console.log('[planilla] jQuery click en confirm-delete-btn a las', new Date().toLocaleString());
                 confirmDeleteTrabajador();
+            });
+            // Interceptar eventos de eliminación para evitar comportamientos no deseados
+            $('.delete-trabajador-btn').off('click').on('click', function(e) {
+                e.preventDefault();
+                const planillaId = $(this).closest('tr').data('id');
+                console.log('[planilla] jQuery click en delete-trabajador-btn a las', new Date().toLocaleString(), ':', planillaId);
+                removeTrabajador(planillaId, e);
             });
         });
 

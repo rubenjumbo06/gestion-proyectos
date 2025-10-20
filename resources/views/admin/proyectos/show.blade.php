@@ -420,7 +420,7 @@
             }
         }
 
-        window.removeTrabajador = function(planillaId) {
+        /* window.removeTrabajador = function(planillaId) {
             if (confirm('¿Estás seguro de que deseas eliminar este trabajador de la planilla?')) {
                 fetch(`/admin/proyectos/${proyectoId}/remove-planilla/${planillaId}`, {
                     method: 'DELETE',
@@ -441,7 +441,7 @@
                 })
                 .catch(error => console.error('Error:', error));
             }
-        };
+        }; */
 
         function buildMaterialesOption(payload) {
             const { labels, data } = normalizeLabelsData(payload);
