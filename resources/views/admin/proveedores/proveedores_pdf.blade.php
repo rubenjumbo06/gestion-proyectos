@@ -19,7 +19,7 @@
             z-index: -1;
         }
         table {
-            width: 80%;
+            width: 100%;
             border-collapse: collapse;
             margin-top: 50px;
             margin-left: auto;
@@ -29,7 +29,7 @@
             border: 1px solid #ddd;
             padding: 8px;
             text-align: center;
-            font-size: 10pt;
+            font-size: 9pt;
         }
         th {
             background-color: #c00c0c;
@@ -50,17 +50,25 @@
     <table>
         <thead>
             <tr>
+                <th>Tipo ID</th>
+                <th>N° Identificación</th>
                 <th>Nombre</th>
                 <th>Descripción</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($proveedores as $proveedor)
+            @forelse ($proveedores as $proveedor)
                 <tr>
+                    <td>{{ $proveedor->tipo_identificacion ?? '-' }}</td>
+                    <td>{{ $proveedor->identificacion ?? '-' }}</td>
                     <td>{{ $proveedor->nombre_prov }}</td>
-                    <td>{{ $proveedor->descripcion_prov ?? '' }}</td>
+                    <td>{{ $proveedor->descripcion_prov ?? 'Sin descripción' }}</td>
                 </tr>
-            @endforeach
+            @empty
+                <tr>
+                    <td colspan="4" style="text-align: center; font-style: italic;">No hay proveedores registrados</td>
+                </tr>
+            @endforelse
         </tbody>
     </table>
 </body>

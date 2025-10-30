@@ -83,7 +83,7 @@
                     </td>
                 </tr>
                 <tr>
-                    <td>Planilla (Suma total incl. gastos)</td>
+                    <td>Personal (Suma total incl. gastos)</td>
                     <td id="pre_planilla">
                         {{ number_format($sum_planilla, 2) }}
                     </td>
@@ -218,30 +218,30 @@
 <!-- Modal Finalización -->
 <div class="modal fade" id="finalizarModal" tabindex="-1" role="dialog" aria-labelledby="finalizarModalLabel">
     <div class="modal-dialog" role="document">
-        <div class="modal-content">
-            <div class="modal-header bg-red">
+        <div class="modal-content" style="border-radius: 16px;">
+            <div class="modal-header bg-red" style="border-radius: 16px 16px 0 0;">
                 <h4 class="modal-title text-white" id="finalizarModalLabel">Confirmar Finalización</h4>
             </div>
             <div class="modal-body">
                 <div class="alert alert-warning">
-                    <i class="icon fa fa-warning"></i>
+                    <i></i>
                     <strong>¡Atención!</strong> ¿Estás seguro de que deseas <b>finalizar este proyecto</b>?
                 </div>
                 <p>Una vez finalizado:</p>
-                <ul class="list-unstyled">
-                    <li><i class="fa fa-check text-success"></i> Se registrará la fecha de finalización real.</li>
-                    <li><i class="fa fa-check text-success"></i> Los trabajadores en planilla pasarán a estado <b>LIQUIDADO</b>.</li>
-                    <li><i class="fa fa-check text-success"></i> No se podrán agregar más materiales, gastos ni personal.</li>
+                <ul class="list-disc pl-6">
+                    <li><i></i> Se registrará la fecha de finalización real.</li>
+                    <li><i></i> Los trabajadores en planilla pasarán a estado <b>LIQUIDADO</b>.</li>
+                    <li><i></i> No se podrán agregar más materiales, gastos ni personal.</li>
                 </ul>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-default" data-dismiss="modal">
-                    <i class="fa fa-times"></i> Cancelar
+                    <i></i> Cancelar
                 </button>
                 <form action="{{ route('proyectos.finalizar', $proyectoId ?? '') }}" method="POST" style="display: inline;">
                     @csrf
                     <button type="submit" class="btn btn-danger">
-                        <i class="fa fa-stop"></i> Sí, Finalizar
+                        <i></i> Sí, Finalizar
                     </button>
                 </form>
             </div>

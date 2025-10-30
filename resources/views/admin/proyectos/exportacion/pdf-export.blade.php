@@ -23,9 +23,9 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px; /* Reduced spacing between title and table */
-            margin-bottom: 30px; /* Space after table */
-            page-break-inside: avoid; /* Prevent table from splitting across pages */
+            margin-top: 10px;
+            margin-bottom: 30px;
+            page-break-inside: avoid;
         }
         th, td {
             border: 1px solid #ddd;
@@ -39,8 +39,8 @@
         }
         .logo {
             position: absolute;
-            top: 15px;
-            left: 10px;
+            top: 30px;
+            left: 20px;
             width: 100px;
         }
         .page-number {
@@ -52,38 +52,107 @@
             color: #666;
         }
         .section {
-            page-break-before: always; /* Each section starts on a new page */
+            page-break-before: always;
             margin-bottom: 30px;
         }
         .intro-text {
             margin-bottom: 20px;
-            font-size: 11pt; /* Slightly larger font size */
-            text-align: justify; /* Justified text */
+            font-size: 11pt;
+            text-align: justify;
             line-height: 1.5;
         }
         .info-general p {
             margin: 5px 0;
-            line-height: 1.5; /* Line spacing of 1.15 */
+            line-height: 1.5;
         }
         .spacer {
-            margin-bottom: 30px; /* Space below Monto Inicial */
+            margin-bottom: 30px;
+        }
+        h1 {
+            margin-top: 60px;
+            text-align: center;
+            color: #c00c0c;
+            font-weight: bold;
+        }
+        h2 {
+            color: #c00c0c;
+            border-bottom: 2px solid #c00c0c;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+        }
+
+        /* ACTIVIDADES: ESTILO BONITO */
+        .activity-card {
+            background: #f9f9f9;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            page-break-inside: avoid;
+        }
+        .activity-card h3 {
+            margin: 0 0 12px 0;
+            color: #c00c0c;
+            font-size: 14pt;
+            text-align: center;
+        }
+        /* contenedor que garantiza el centrado en HTML y en motores de PDF */
+        .activity-image-wrapper {
+        text-align: center;        /* centra contenido inline/inline-block */
+        width: 100%;
+        margin: 0 auto;
+        /* evita que el contenedor fuerce saltos de página raros */
+        page-break-inside: avoid;
+        }
+
+        /* imagen como inline-block para compatibilidad con los motores PDF */
+        .activity-image {
+        display: inline-block;     /* <- importante para PDF */
+        margin: 0 auto;
+        max-width: 220px;
+        max-height: 220px;
+        border-radius: 10px;
+        border: 2px solid #ddd;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        vertical-align: middle;
+        }
+        .activity-card p {
+            margin: 8px 0;
+            text-align: justify;
+            font-size: 11pt;
+            line-height: 1.6;
+        }
+        .activity-date {
+            text-align: right;
+            font-size: 10pt;
+            color: #666;
+            font-style: italic;
+            margin-top: 10px;
         }
     </style>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sections = document.querySelectorAll('.section');
+            let pageNum = 1;
+            sections.forEach((section) => {
+                const pageNumDiv = document.createElement('div');
+                pageNumDiv.className = 'page-number';
+                pageNumDiv.textContent = `Página ${pageNum}`;
+                section.appendChild(pageNumDiv);
+                pageNum++;
+            });
+        });
+    </script>
 </head>
 <body>
     <img src="{{ public_path('images/BARUC_LOGO.jpeg') }}" alt="Logo Baruc" class="logo">
     <div class="watermark">CONFIDENCIAL</div>
-    <h1 style="text-align: center;">{{ $proyecto->nombre_proyecto }}</h1>
+    <h1>{{ $proyecto->nombre_proyecto }}</h1>
 
-    <div class="section" style="page-break-before: auto;"> <!-- No page break for first section -->
+    <div class="section" style="page-break-before: auto;">
         <div class="intro-text">
-            <p>El presente documento ha sido elaborado con el propósito de brindar una visión integral y detallada del desarrollo del proyecto, desde su planificación inicial hasta su culminación. Su finalidad es servir como una herramienta de recopilación y análisis que permita reflejar, de manera clara y ordenada, cada uno de los aspectos fundamentales que hicieron posible la ejecución del mismo.
-
-En este informe se presentan no solo las fechas establecidas que marcaron las distintas etapas del proyecto, sino también los elementos clave que intervinieron en su realización. Entre ellos, se detallan los trabajadores que formaron parte de la planilla y desempeñaron funciones específicas, los materiales adquiridos para garantizar el cumplimiento de las metas propuestas, así como los proveedores que contribuyeron de manera directa con la provisión de recursos necesarios.
-
-La estructura de este documento busca ofrecer una visión global del costo total del proyecto, presentando de forma rápida pero concisa los rubros que lo componen y que, en conjunto, reflejan el esfuerzo humano, técnico y financiero involucrado. De este modo, se constituye en una referencia formal que facilita el análisis posterior, la evaluación de resultados y la toma de decisiones para proyectos futuros.
-
-En suma, este documento no solo recoge los hitos y registros más importantes, sino que también constituye un respaldo documental que demuestra la transparencia, la planificación y el orden con los que se llevó a cabo el proyecto.</p>
+            <p>Este documento ofrece un resumen claro y conciso del proyecto, detallando su planificación, ejecución y costos. Incluye información sobre trabajadores, materiales, proveedores y egresos, sirviendo como herramienta para análisis y toma de decisiones futuras.</p>
         </div>
 
         <h2>Información General</h2>
@@ -97,7 +166,6 @@ En suma, este documento no solo recoge los hitos y registros más importantes, s
             <p><strong>Sueldo Estimado para todos los Trabajadores:</strong> S/ {{ number_format($proyecto->planilla->sum('pago') ?? 0, 2) }}</p>
         </div>
         <div class="spacer"></div>
-        <div class="page-number">Página 1</div>
     </div>
 
     <div class="section">
@@ -108,9 +176,9 @@ En suma, este documento no solo recoge los hitos y registros más importantes, s
                 @foreach ($proveedores as $prov)
                     <tr><td>{{ $prov['nombre'] }}</td><td>{{ number_format($prov['total_monto'], 2) }}</td></tr>
                 @endforeach
+                <tr><td><strong>Total</strong></td><td><strong>S/ {{ number_format($proveedores->sum('total_monto'), 2) }}</strong></td></tr>
             </tbody>
         </table>
-        <div class="page-number">Página 2</div>
     </div>
 
     <div class="section">
@@ -121,37 +189,57 @@ En suma, este documento no solo recoge los hitos y registros más importantes, s
                 @foreach ($proyecto->materiales as $mat)
                     <tr><td>{{ $mat->descripcion_mat }}</td><td>{{ $mat->proveedor->nombre_prov }}</td><td>{{ number_format($mat->monto_mat, 2) }}</td><td>{{ $mat->fecha_mat->format('d/m/Y') }}</td></tr>
                 @endforeach
+                <tr><td colspan="2"><strong>Total</strong></td><td><strong>S/ {{ number_format($proyecto->materiales->sum('monto_mat'), 2) }}</strong></td><td></td></tr>
             </tbody>
         </table>
-        <div class="page-number">Página 3</div>
     </div>
 
     <div class="section">
-        <h2>Planilla</h2>
+        <h2>Personal</h2>
         <table>
             <thead><tr><th>Trabajador</th><th>DNI</th><th>Pago</th><th>Alimentación</th><th>Hospedaje</th><th>Pasajes</th><th>Estado</th></tr></thead>
             <tbody>
                 @foreach ($proyecto->planilla as $pl)
                     <tr><td>{{ $pl->trabajador->nombre_trab }} {{ $pl->trabajador->apellido_trab }}</td><td>{{ $pl->trabajador->dni_trab }}</td><td>{{ number_format($pl->pago, 2) }}</td><td>{{ number_format($pl->alimentacion_trabajador, 2) }}</td><td>{{ number_format($pl->hospedaje_trabajador, 2) }}</td><td>{{ number_format($pl->pasajes_trabajador, 2) }}</td><td>{{ $pl->estado }}</td></tr>
                 @endforeach
+                <tr><td colspan="2"><strong>Total</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('pago'), 2) }}</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('alimentacion_trabajador'), 2) }}</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('hospedaje_trabajador'), 2) }}</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('pasajes_trabajador'), 2) }}</strong></td><td></td></tr>
             </tbody>
         </table>
-        <div class="page-number">Página 4</div>
     </div>
 
     <div class="section">
         <h2>Gastos Extra</h2>
         <table>
-            <thead><tr><th>Alimentación</th><th>Hospedaje</th><th>Pasajes</th><th>Fecha</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Alimentación</th>
+                    <th>Hospedaje</th>
+                    <th>Pasajes</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
             <tbody>
-                @foreach ($proyecto->gastosExtra as $ge)
-                    <tr><td>{{ number_format($ge->alimentacion_general, 2) }}</td><td>{{ number_format($ge->hospedaje, 2) }}</td><td>{{ number_format($ge->pasajes, 2) }}</td><td>{{ $ge->created_at->format('d/m/Y') }}</td></tr>
-                @endforeach
+                @forelse ($proyecto->gastosExtra as $ge)
+                    <tr>
+                        <td>S/ {{ number_format($ge->alimentacion_general, 2) }}</td>
+                        <td>S/ {{ number_format($ge->hospedaje, 2) }}</td>
+                        <td>S/ {{ number_format($ge->pasajes, 2) }}</td>
+                        <td>{{ $ge->created_at->format('d/m/Y') }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="4" style="font-style: italic; color: #666;">No hay gastos extra registrados</td>
+                    </tr>
+                @endforelse
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>S/ {{ number_format($proyecto->gastosExtra->sum('alimentacion_general'), 2) }}</strong></td>
+                    <td><strong>S/ {{ number_format($proyecto->gastosExtra->sum('hospedaje'), 2) }}</strong></td>
+                    <td><strong>S/ {{ number_format($proyecto->gastosExtra->sum('pasajes'), 2) }}</strong></td>
+                </tr>
             </tbody>
         </table>
-        <div class="page-number">Página 5</div>
     </div>
-
     <div class="section">
         <h2>Egresos</h2>
         <table>
@@ -162,9 +250,50 @@ En suma, este documento no solo recoge los hitos y registros más importantes, s
                 <tr><td>SCR</td><td>{{ number_format($proyecto->egresos->scr ?? 0, 2) }}</td></tr>
                 <tr><td>Gastos Administrativos</td><td>{{ number_format($proyecto->egresos->gastos_administrativos ?? 0, 2) }}</td></tr>
                 <tr><td>Gastos Extra</td><td>{{ number_format($proyecto->egresos->gastos_extra ?? 0, 2) }}</td></tr>
+                <tr><td><strong>Total</strong></td><td><strong>S/ {{ number_format(($proyecto->egresos->materiales ?? 0) + ($proyecto->egresos->planilla ?? 0) + ($proyecto->egresos->scr ?? 0) + ($proyecto->egresos->gastos_administrativos ?? 0) + ($proyecto->egresos->gastos_extra ?? 0), 2) }}</strong></td></tr>
             </tbody>
         </table>
-        <div class="page-number">Página 6</div>
+    </div>
+
+    <div class="section">
+        <h2>Actividades</h2>
+        <div>
+            @forelse ($proyecto->actividades as $actividad)
+                <div class="activity-card">
+                    <h3>{{ $actividad->nombre ?? 'Sin título' }}</h3>
+                    
+                   @if($actividad->imagen_url)
+                        <div class="activity-image-wrapper">
+                            <img src="{{ $actividad->imagen_url }}" 
+                                alt="Imagen de {{ $actividad->nombre }}" 
+                                class="activity-image">
+                        </div>
+                    @endif
+
+                    <p>{{ $actividad->descripcion ?? 'Sin descripción' }}</p>
+                    <p class="activity-date">
+                        {{ $actividad->fecha_actividad ? \Carbon\Carbon::parse($actividad->fecha_actividad)->format('d/m/Y') : 'Sin fecha' }}
+                    </p>
+                </div>
+            @empty
+                <p style="text-align: center; color: #666; font-style: italic;">No hay actividades registradas para este proyecto.</p>
+            @endforelse
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>Resumen de Utilidad</h2>
+        <div class="info-general">
+            <p><strong>Monto Inicial:</strong> S/ {{ number_format($proyecto->montopr->monto_inicial ?? 0, 2) }}</p>
+            <p><strong>Total Gastado:</strong></p>
+            <p>- Materiales: S/ {{ number_format($proyecto->egresos->materiales ?? 0, 2) }}</p>
+            <p>- Planilla: S/ {{ number_format($proyecto->egresos->planilla ?? 0, 2) }}</p>
+            <p>- SCR: S/ {{ number_format($proyecto->egresos->scr ?? 0, 2) }}</p>
+            <p>- Gastos Administrativos: S/ {{ number_format($proyecto->egresos->gastos_administrativos ?? 0, 2) }}</p>
+            <p>- Gastos Extra: S/ {{ number_format($proyecto->egresos->gastos_extra ?? 0, 2) }}</p>
+            <p><strong>Total Gastado:</strong> S/ {{ number_format(($proyecto->egresos->materiales ?? 0) + ($proyecto->egresos->planilla ?? 0) + ($proyecto->egresos->scr ?? 0) + ($proyecto->egresos->gastos_administrativos ?? 0) + ($proyecto->egresos->gastos_extra ?? 0), 2) }}</p>
+            <p><strong>Monto Restante:</strong> S/ {{ number_format(max(0, ($proyecto->montopr->monto_inicial ?? 0) - (($proyecto->egresos->materiales ?? 0) + ($proyecto->egresos->planilla ?? 0) + ($proyecto->egresos->scr ?? 0) + ($proyecto->egresos->gastos_administrativos ?? 0) + ($proyecto->egresos->gastos_extra ?? 0))), 2) }}</p>
+        </div>
     </div>
 </body>
 </html>

@@ -11,6 +11,7 @@ use App\Http\Controllers\DepartamentoController;
 use App\Http\Controllers\ProyectosController; 
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\TrabajadoresController;
+use App\Http\Controllers\ActividadesController;
 use App\Http\Controllers\PlanillaController;
 
 // Ruta para la página de login
@@ -96,6 +97,15 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/proyectos/{id}/calculate-egresos', [ProyectosController::class, 'calculateAndSaveEgresos'])->name('proyectos.calculate.egresos');
         Route::post('/proyectos/{id}/finalizar', [ProyectosController::class, 'finalizar'])->name('proyectos.finalizar');
 
+        // Rutas para actividades
+        Route::get('/proyectos/{proyecto}/actividades', [ActividadesController::class, 'index'])->name('proyectos.actividades.index');
+        Route::post('/proyectos/{proyecto}/actividades', [ActividadesController::class, 'store'])->name('proyectos.actividades.store');
+        Route::put('/proyectos/{proyecto}/actividades/{actividad}', [ActividadesController::class, 'update'])->name('proyectos.actividades.update');
+        Route::delete('/proyectos/{proyecto}/actividades/{actividad}', [ActividadesController::class, 'destroy'])->name('proyectos.actividades.destroy');
+        Route::get('/reporte_actividades', [ActividadesController::class, 'reporte'])->name('reporte_actividades');
+        Route::post('/reporte_actividades', [ActividadesController::class, 'store'])->name('reporte_actividades.store');
+        Route::put('/reporte_actividades/{actividad}', [ActividadesController::class, 'update'])->name('reporte_actividades.update');
+        Route::delete('/reporte_actividades/{actividad}', [ActividadesController::class, 'destroy'])->name('reporte_actividades.destroy');
         
         Route::resource('trabajadores', TrabajadoresController::class)->parameters(['trabajadores' => 'trabajador']);
         Route::resource('planillas', PlanillaController::class)->parameters(['planillas' => 'planilla']);

@@ -50,7 +50,7 @@
                                 <td class="fecha-creacion">{{ $proyecto->fecha_creacion ? $proyecto->fecha_creacion->format('d/m/Y') : 'N/A' }}</td>
                                 <td class="acciones">
                                     <a href="{{ route('proyectos.exportPdf', $proyecto) }}" class="btn btn-success">
-                                        <i class="fa fa-file-pdf"></i> Exportar PDF {{ $proyecto->nombre_proyecto }}
+                                        <i class="fa fa-file-pdf"></i> Exportar PDF
                                     </a>
                                 </td>
                             </tr>

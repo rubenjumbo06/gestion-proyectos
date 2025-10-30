@@ -299,11 +299,11 @@
         const form = document.getElementById(formId);
         const inputs = {
             nombre_proyecto: {
-                pattern: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ\s]+$/,
+                pattern: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ.()\s]+$/,
                 error: 'Solo se permiten letras, números y espacios'
             },
             cliente_proyecto: {
-                pattern: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ\s]+$/,
+                pattern: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑ.ñ()\s]+$/,
                 error: 'Solo se permiten letras, números y espacios'
             },
             cantidad_trabajadores: {

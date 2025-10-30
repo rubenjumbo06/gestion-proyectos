@@ -17,6 +17,13 @@
                 </a>
             </li>
 
+             <!-- Reporte de Actividades
+            <li class="{{ Route::is('reporte_actividades') ? 'active' : '' }}">
+                <a href="{{ route('reporte_actividades') }}" title="Reporte de Actividades">
+                    <i class="fa fa-list"></i> <span>Reporte de Actividades</span>
+                </a>
+            </li> -->
+
             <!-- Proveedores -->
             <li class="{{ Route::is('proveedores.*') ? 'active' : '' }}">
                 <a href="{{ url('/admin/proveedores') }}" title="Proveedores">

@@ -1,73 +1,84 @@
 @props(['proyecto'])
 
 <div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-        <h2 class="text-3xl font-bold text-gray-700">Gestión de Materiales</h2>
-        <button id="add-material-btn" 
-                onclick="openAddMaterialWithCheck()"
-                class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-4 px-8 rounded-full text-xl transition duration-300 flex items-center">
-            <i class="fas fa-plus-circle mr-2 text-2xl"></i>Agregar Material
-        </button>
-    </div>
-
     <!-- Presupuesto de Materiales -->
-    <div class="bg-white shadow rounded-lg p-4 mb-4">
-        <h3 class="text-xl font-semibold text-gray-700 mb-2">Presupuesto Materiales</h3>
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-                <span class="text-gray-500">Asignado</span>
-                <div class="text-2xl font-bold">S/<span id="mat-assigned">{{ isset($budgetMaterials['assigned']) ? number_format($budgetMaterials['assigned'], 2) : '0.00' }}</span></div>
+    <div class="col-md-12 mb-6">
+        <div class="box box-info">
+            <div class="box-header with-border">
+                <h3 class="box-title">Presupuesto Materiales</h3>
             </div>
-            <div>
-                <span class="text-gray-500">Gastado</span>
-                <div class="text-2xl font-bold text-red-600">S/<span id="mat-spent">{{ isset($budgetMaterials['spent']) ? number_format($budgetMaterials['spent'], 2) : '0.00' }}</span></div>
-            </div>
-            <div>
-                <span class="text-gray-500">Restante</span>
-                <div class="text-2xl font-bold text-green-600">S/<span id="mat-remaining">{{ isset($budgetMaterials['remaining']) ? number_format($budgetMaterials['remaining'], 2) : '0.00' }}</span></div>
+            <div class="box-body">
+                <div class="row">
+                    <div class="col-sm-4">
+                        <p><strong>Asignado:</strong> S/<span id="mat-assigned">{{ isset($budgetMaterials['assigned']) ? number_format($budgetMaterials['assigned'], 2) : '0.00' }}</span></p>
+                    </div>
+                    <div class="col-sm-4">
+                        <p><strong>Gastado:</strong> <span class="text-red-600">S/<span id="mat-spent">{{ isset($budgetMaterials['spent']) ? number_format($budgetMaterials['spent'], 2) : '0.00' }}</span></span></p>
+                    </div>
+                    <div class="col-sm-4">
+                        <p><strong>Restante:</strong> <span class="text-green-600">S/<span id="mat-remaining">{{ isset($budgetMaterials['remaining']) ? number_format($budgetMaterials['remaining'], 2) : '0.00' }}</span></span></p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="material-error" class="hidden text-red-600 mb-4 text-lg"></div>
 
-    <div class="overflow-x-auto shadow-md rounded-lg">
-        <table id="materiales-table" class="min-w-full bg-white border border-gray-200 text-xl">
-            <thead class="bg-gray-200">
-                <tr>
-                    <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Descripción</th>
-                    <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Proveedor</th>
-                    <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Monto</th>
-                    <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Fecha Creación</th>
-                    <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Fecha Actualización</th>
-                    <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Acciones</th>
-                </tr>
-            </thead>
-            <tbody class="text-xl">
-                @foreach($materiales as $material)
-                    <tr data-id="{{ $material->id_material }}">
-                        <td class="px-6 py-4">{{ $material->descripcion_mat }}</td>
-                        <td class="px-6 py-4">{{ $material->proveedor->nombre_prov }}</td>
-                        <td class="px-6 py-4">S/{{ number_format($material->monto_mat, 2) }}</td>
-                        <td class="px-6 py-4">{{ \Carbon\Carbon::parse($material->fecha_mat)->format('d/m/Y') }}</td>
-                        <td class="px-6 py-4">{{ $material->updated_at ? \Carbon\Carbon::parse($material->updated_at)->format('d/m/Y') : 'N/A' }}</td>
-                        <td class="px-6 py-4 flex space-x-3">
-                            <button data-id="{{ $material->id_material }}" 
-                                    onclick="editMaterial({{ $material->id_material }})" 
-                                    class="text-yellow-500 hover:text-yellow-600 text-2xl">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                            <button data-id="{{ $material->id_material }}" 
-                                    onclick="confirmDeleteMaterial({{ $material->id_material }})" 
-                                    class="text-red-500 hover:text-red-600 text-2xl">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-        {{ $materiales->links() }}
+    <!-- Sección de Gestión de Materiales (igual que Gestión de Personal) -->
+    <div class="box box-primary">
+        <div class="box-header with-border">
+            <h3 class="box-title">Gestión de Materiales</h3>
+            <div class="box-tools pull-right">
+                <button id="add-material-btn" 
+                        onclick="openAddMaterialWithCheck()"
+                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-full text-lg transition duration-300 flex items-center">
+                    <i class="fas fa-plus-circle mr-2"></i> Agregar Material
+                </button>
+            </div>
+        </div>
+        <div class="box-body">
+            <div class="table-responsive">
+                <table id="materiales-table" class="table table-bordered table-striped min-w-full bg-white border border-gray-200 text-xl">
+                    <thead>
+                        <tr>
+                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Descripción</th>
+                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Proveedor</th>
+                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Monto</th>
+                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Fecha Creación</th>
+                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Fecha Actualización</th>
+                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-xl">
+                        @foreach($materiales as $material)
+                            <tr data-id="{{ $material->id_material }}">
+                                <td class="px-6 py-4">{{ $material->descripcion_mat }}</td>
+                                <td class="px-6 py-4">{{ $material->proveedor->nombre_prov }}</td>
+                                <td class="px-6 py-4">S/{{ number_format($material->monto_mat, 2) }}</td>
+                                <td class="px-6 py-4">{{ \Carbon\Carbon::parse($material->fecha_mat)->format('d/m/Y') }}</td>
+                                <td class="px-6 py-4">{{ $material->updated_at ? \Carbon\Carbon::parse($material->updated_at)->format('d/m/Y') : 'N/A' }}</td>
+                                <td class="px-6 py-4 flex space-x-3 justify-center">
+                                    <button data-id="{{ $material->id_material }}" 
+                                            onclick="editMaterial({{ $material->id_material }})" 
+                                            class="text-yellow-500 hover:text-yellow-600 text-2xl">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button data-id="{{ $material->id_material }}" 
+                                            onclick="confirmDeleteMaterial({{ $material->id_material }})" 
+                                            class="text-red-500 hover:text-red-600 text-2xl">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                <div class="text-center mt-4">
+                    {{ $materiales->links() }}
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Modal para agregar material -->
@@ -86,7 +97,7 @@
                             <span class="text-danger error-message" id="descripcion_mat_error"></span>
                         </div>
                         <div class="form-group">
-                            <label for="id_proveedor" class="font-semibold text-left text-black">Proveedor</label>
+                            <label for="id_proveedor" class="font-semibold text-left text-black">Comprado por:</label>
                             <select id="id_proveedor" name="id_proveedor" class="form-control" required>
                                 <option value="">Seleccionar proveedor</option>
                                 @foreach(\App\Models\Proveedor::all() as $proveedor)
@@ -285,6 +296,65 @@
     color: #444;
     text-align: left;
 }
+
+/* --- Ajustes de ancho y proporción de tabla --- */
+#materiales-table {
+    width: 100%;
+    table-layout: fixed; /* Fuerza que las columnas respeten proporciones */
+}
+
+/* Ajustar proporciones generales */
+#materiales-table th,
+#materiales-table td {
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+/* Columnas específicas (ajusta los porcentajes si lo ves necesario) */
+#materiales-table th:nth-child(1),
+#materiales-table td:nth-child(1) {
+    width: 30%; /* Descripción un poco más angosta */
+}
+
+#materiales-table th:nth-child(2),
+#materiales-table td:nth-child(2) {
+    width: 18%; /* Proveedor */
+}
+
+#materiales-table th:nth-child(3),
+#materiales-table td:nth-child(3) {
+    width: 10%; /* Monto */
+}
+
+#materiales-table th:nth-child(4),
+#materiales-table td:nth-child(4),
+#materiales-table th:nth-child(5),
+#materiales-table td:nth-child(5) {
+    width: 15%; /* Fechas un poco más angostas */
+}
+
+#materiales-table th:nth-child(6),
+#materiales-table td:nth-child(6) {
+    width: 10%; /* Acciones */
+}
+
+/* Asegura que el cuadro del presupuesto tenga el mismo ancho visual que otros */
+.box.box-info,
+.box.box-primary {
+    width: 100%;
+}
+
+/* Igualar el padding para que las cajas se vean del mismo tamaño */
+.box-body {
+    padding: 1.5rem 1.8rem !important;
+}
+
+/* Centrar título y mantener proporción */
+.box-header .box-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+}
+
 </style>
 
 <script>
@@ -605,7 +675,7 @@ document.getElementById('deleteMaterialForm').addEventListener('submit', functio
 // Validaciones de inputs
 document.querySelectorAll('.letter-dot-only').forEach(input => {
     input.addEventListener('input', function() {
-        this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s.'"]/g, '');
+        this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9() \.'""]/g, '');
     });
 });
 

@@ -6,7 +6,7 @@
         <!-- Encabezado -->
         <div class="mb-12 border-b-2 border-gray-300 pb-8">
             <div class="flex justify-between items-center px-8">
-                <h1 class="text-4xl font-extrabold text-gray-900 tracking-wide">COTIZACIÓN N° <span id="tituloProyecto">{{ $proyecto->id_proyecto ?? '' }}</span></h1>
+                <h1 class="text-4xl font-extrabold text-gray-900 tracking-wide"><span id="tituloProyecto">{{ $proyecto->nombre_proyecto ?? '' }}</span></h1>
                 <div class="flex items-center space-x-6">
                     <label for="proyectoSelect" class="text-xl font-semibold text-gray-800">Seleccionar Proyecto:</label>
                     <select id="proyectoSelect" class="border-2 border-gray-300 rounded-xl p-3 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-600 text-lg bg-white hover:bg-gray-50 transition duration-200">
@@ -95,6 +95,7 @@
             console.log('=== DASHBOARD: Cambio detectado, nuevo ID', e.target.value);
             const id = e.target.value;
             const opt = e.target.options[e.target.selectedIndex];
+            const nombre = opt.getAttribute('data-nombre') || '';
             const cliente = opt.getAttribute('data-cliente') || '';
             let monto = Number(opt.getAttribute('data-monto') || 0);
 
@@ -107,10 +108,10 @@
                 }
             }
 
-            tituloProyecto.textContent = id;
+            tituloProyecto.textContent = nombre;
             clienteProyectoEl.textContent = cliente;
             montoInicialEl.textContent = monto.toLocaleString('es-PE', { minimumFractionDigits: 2 });
-            console.log('=== DASHBOARD: Dropdown actualizado - Título:', id, 'Monto:', monto);
+            console.log('=== DASHBOARD: Dropdown actualizado - Título:', nombre, 'Monto:', monto);
 
             if (typeof updateCharts === 'function') updateCharts(id);
         });
@@ -119,9 +120,10 @@
         const initialId = selectProyecto.value;
         if (initialId) {
             const opt = selectProyecto.options[selectProyecto.selectedIndex];
+            const nombre = opt.getAttribute('data-nombre') || '';
             const cliente = opt.getAttribute('data-cliente') || '';
             let monto = Number(opt.getAttribute('data-monto') || 0);
-            tituloProyecto.textContent = initialId;
+            tituloProyecto.textContent = nombre;
             clienteProyectoEl.textContent = cliente;
             montoInicialEl.textContent = monto.toLocaleString('es-PE', { minimumFractionDigits: 2 });
             console.log('=== DASHBOARD: Inicial dropdown cargado');

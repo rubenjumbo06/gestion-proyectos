@@ -74,12 +74,12 @@
                             <td>{{ $gasto->created_at->format('d/m/Y H:i') }}</td>
                             <td class="action-buttons">
                                 @if(Auth::check() && Auth::user()->puede_editar)
-                                    <button type="button" class="open-gasto-modal btn btn-warning btn-xs" data-gasto-id="{{ $gasto->id_gasto }}">
+                                    <button type="button" class="open-gasto-modal text-yellow-500 hover:text-yellow-600 text-2xl" data-gasto-id="{{ $gasto->id_gasto }}">
                                         <i class="fa fa-edit"></i>
                                     </button>
                                 @endif
                                 @if(Auth::check() && Auth::user()->puede_eliminar)
-                                    <button type="button" class="btn btn-danger btn-xs" onclick="GastosExtras.removeGasto({{ $gasto->id_gasto }})">
+                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2x" onclick="GastosExtras.removeGasto({{ $gasto->id_gasto }})">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 @endif
@@ -131,18 +131,18 @@
                             <td>{{ $servicio->created_at->format('d/m/Y H:i') }}</td>
                             <td>
                                 @if(Auth::check() && Auth::user()->puede_editar)
-                                    <button type="button" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#servicios-modal"
+                                    <button type="button" class="btn text-yellow-500 hover:text-yellow-600 text-2xl" data-toggle="modal" data-target="#servicios-modal"
                                             data-id="{{ $servicio->id_servicio }}"
                                             data-descripcion="{{ $servicio->descripcion_serv }}"
                                             data-monto="{{ $servicio->monto }}">
-                                        <i class="fa fa-edit"></i>
+                                        <i class="fas fa-edit"></i>
                                     </button>
                                 @endif
                                 @if(Auth::check() && Auth::user()->puede_eliminar)
                                     <form action="{{ route('servicios.destroy', $servicio->id_servicio) }}" method="POST" style="display:inline;">
                                         @csrf @method('DELETE')
-                                        <button type="submit" class="btn btn-danger btn-xs">
-                                            <i class="fa fa-trash"></i>
+                                        <button type="submit" class="btn text-red-500 hover:text-red-600 text-2x">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                     </form>
                                 @endif

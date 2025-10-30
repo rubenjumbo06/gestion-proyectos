@@ -11,8 +11,21 @@ class Proveedor extends Model
 
     protected $table = 'proveedores';
     protected $primaryKey = 'id_proveedor';
-    protected $fillable = ['nombre_prov', 'descripcion_prov'];
-    protected $casts = ['created_at' => 'datetime', 'updated_at' => 'datetime', 'deleted_at' => 'datetime'];
+
+    // CAMPOS PERMITIDOS PARA MASS ASSIGNMENT
+    protected $fillable = [
+        'nombre_prov',
+        'descripcion_prov',
+        'identificacion',           // NUEVO
+        'tipo_identificacion'       // NUEVO
+    ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'deleted_at' => 'datetime',
+    ];
+
     public $timestamps = true;
 
     /**

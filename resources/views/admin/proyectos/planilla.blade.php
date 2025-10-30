@@ -83,14 +83,14 @@
                                     <td class="text-right">S/{{ number_format($planillaItem->pasajes_trabajador, 2) }}</td>
                                     <td>{{ $planillaItem->estado }}</td>
                                     <td class="action-buttons planilla-action-buttons">
-                                        <button type="button" class="btn btn-default btn-xs set-pago-dia-btn" onclick="openPagoDiaModal({{ $planillaItem->id_planilla }}, '{{ $planillaItem->trabajador->nombre_trab }} {{ $planillaItem->trabajador->apellido_trab }}', {{ (float)($planillaItem->pago_dia ?? 0) }})" title="Establecer pago diario" {{ ($planillaItem->pago_dia ?? 0) > 0 ? 'disabled' : '' }}>
-                                            <i class="fa fa-plus action-icon"></i>
+                                        <button type="button" class="btn text-2xl set-pago-dia-btn" onclick="openPagoDiaModal({{ $planillaItem->id_planilla }}, '{{ $planillaItem->trabajador->nombre_trab }} {{ $planillaItem->trabajador->apellido_trab }}', {{ (float)($planillaItem->pago_dia ?? 0) }})" title="Establecer pago diario" {{ ($planillaItem->pago_dia ?? 0) > 0 ? 'disabled' : '' }}>
+                                            <i class="fas fa-plus action-icon"></i>
                                         </button>
-                                        <button type="button" class="open-update-modal btn btn-warning btn-xs" data-planilla-id="{{ $planillaItem->id_planilla }}">
-                                            <i class="fa fa-edit action-icon"></i>
+                                        <button type="button" class="open-update-modal text-yellow-500 hover:text-yellow-600 text-2xl" data-planilla-id="{{ $planillaItem->id_planilla }}">
+                                            <i class="fas fa-edit"></i>
                                         </button>
-                                        <button type="button" class="btn btn-danger btn-xs" onclick="removeTrabajador({{ $planillaItem->id_planilla }}, event)">
-                                            <i class="fa fa-trash action-icon"></i>
+                                        <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl" onclick="removeTrabajador({{ $planillaItem->id_planilla }}, event)">
+                                            <i class="fas fa-trash"></i>
                                         </button>
                                         <!-- <button type="button" class="btn btn-info btn-xs open-details-modal"
                                             data-planilla-id="{{ $planillaItem->id_planilla }}"
@@ -123,7 +123,7 @@
 <!-- Modal para agregar trabajador a la planilla -->
 <div class="modal fade" id="trabajadores-modal" tabindex="-1" role="dialog" aria-labelledby="trabajadores-modal-label">
     <div class="modal-dialog" role="document">
-        <div class="modal-content planilla-custom-modal">
+        <div class="modal-content custom-modal">
             <div class="modal-header bg-primary">
                 <h4 class="modal-title text-white" id="trabajadores-modal-label">Agregar Trabajador al Personal</h4>
             </div>
@@ -156,7 +156,7 @@
 <!-- Modal: Pago Día -->
 <div class="modal fade" id="pago-dia-modal" tabindex="-1" role="dialog" aria-labelledby="pago-dia-modal-label">
     <div class="modal-dialog" role="document">
-        <div class="modal-content planilla-custom-modal">
+        <div class="modal-content custom-modal">
             <div class="modal-header bg-primary">
                 <h4 class="modal-title text-white" id="pago-dia-modal-label">Establecer Pago Diario</h4>
             </div>
@@ -182,7 +182,7 @@
 <!-- Modal: Marcar Asistencia -->
 <div class="modal fade" id="asistencia-modal" tabindex="-1" role="dialog" aria-labelledby="asistencia-modal-label">
     <div class="modal-dialog" role="document">
-        <div class="modal-content planilla-custom-modal">
+        <div class="modal-content custom-modal">
             <div class="modal-header bg-primary">
                 <h4 class="modal-title text-white" id="asistencia-modal-label">Marcar Asistencia (Hoy)</h4>
             </div>
@@ -212,7 +212,7 @@
 <!-- Modal para agregar nuevos gastos del trabajador -->
 <div class="modal fade" id="update-modal" tabindex="-1" role="dialog" aria-labelledby="update-modal-title">
     <div class="modal-dialog" role="document">
-        <div class="modal-content planilla-custom-modal">
+        <div class="modal-content custom-modal">
             <div class="modal-header bg-primary">
                 <h4 class="modal-title text-white" id="update-modal-title">Agregar Nuevos Gastos del Trabajador</h4>
             </div>
@@ -245,7 +245,7 @@
 <!-- Modal para agregar sueldos -->
 <div class="modal fade" id="sueldos-modal" tabindex="-1" role="dialog" aria-labelledby="sueldos-modal-label">
     <div class="modal-dialog" role="document">
-        <div class="modal-content planilla-custom-modal">
+        <div class="modal-content custom-modal">
             <div class="modal-header bg-primary">
                 <h4 class="modal-title text-white" id="sueldos-modal-label">Confirmar Agregar Sueldos</h4>
             </div>
@@ -271,7 +271,7 @@
 <!-- Modal de detalles del trabajador -->
 <div class="modal fade" id="detalles-modal" tabindex="-1" role="dialog" aria-labelledby="detalles-modal-label">
     <div class="modal-dialog" role="document">
-        <div class="modal-content planilla-custom-modal">
+        <div class="modal-content custom-modal">
             <div class="modal-header bg-primary">
                 <h4 class="modal-title text-white" id="detalles-modal-label">Detalles del Trabajador</h4>
             </div>

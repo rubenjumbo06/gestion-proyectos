@@ -52,6 +52,12 @@
                 class="hidden bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-full items-center">
                 <i class="fas fa-sync-alt mr-2"></i> Actualizar Gráficos
             </button>
+
+            <!-- VER ACTIVIDADES -->
+            <a href="{{ route('proyectos.actividades.index', ['proyecto' => $proyecto->id_proyecto]) }}" 
+            class="bg-purple-500 hover:bg-purple-600 text-white px-8 py-2 rounded-full flex items-center">
+                <i class="fas fa-tasks mr-2"></i> Ver Actividades
+            </a>
         </div>
     </div>
 

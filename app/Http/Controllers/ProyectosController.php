@@ -6,6 +6,7 @@ use App\Models\Proyectos;
 use App\Models\Proveedor;
 use App\Models\Planilla;
 use App\Models\Trabajadores;
+use App\Models\ActividadProyecto;
 use App\Models\Materiales;
 use App\Models\Servicio;
 use App\Models\GastosExtra;
@@ -1819,26 +1820,76 @@ public function destroyMaterial($proyecto, $id)
         return redirect()->back()->with('success', 'Proyecto finalizado correctamente.');
     }
 
+    // Mostrar actividades
+    public function actividades($proyectoId)
+    {
+        $proyecto = Proyectos::findOrFail($proyectoId);
+        $actividades = ActividadProyecto::where('proyecto_id', $proyectoId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        return view('admin.proyectos.actividades', compact('proyecto', 'actividades'));
+    }
+
+    // Guardar nueva actividad
+    public function storeActividad(Request $request, $id)
+    {
+        $request->validate([
+            'nombre' => 'required|string|max:255',
+            'descripcion' => 'required|string',
+            'fecha_actividad' => 'required|date',
+            'imagen' => 'nullable|image|max:2048', // Ajusta según tus necesidades
+        ]);
+
+        $proyecto = Proyectos::findOrFail($id);
+        $actividad = new ActividadProyecto();
+        $actividad->proyecto_id = $id;
+        $actividad->nombre = $request->nombre;
+        $actividad->descripcion = $request->descripcion;
+        $actividad->fecha_actividad = $request->fecha_actividad;
+
+        if ($request->hasFile('imagen')) {
+            $actividad->imagen_url = $request->file('imagen')->store('actividades', 'public');
+        }
+
+        $actividad->save();
+
+        return redirect()->back()->with('success', 'Actividad agregada correctamente.');
+    }
+
+    // Eliminar actividad
+    public function destroyActividad($proyectoId, $id)
+    {
+        $actividad = Actividad::findOrFail($id);
+        if ($actividad->imagen) {
+            Storage::disk('public')->delete('actividades/' . $actividad->imagen);
+        }
+        $actividad->delete();
+
+        return redirect()->back()->with('success', 'Actividad eliminada.');
+    }
+
 
     public function exportacionGeneral()
     {
         $proyectos = Proyectos::paginate(10); // Ajusta la paginación según necesites
         return view('admin.proyectos.exportacion.exportacion-general', compact('proyectos'));
     }
-
+    
     public function exportPdf(Proyectos $proyecto)
     {
-        // Cargar datos necesarios con created_at incluido
+        // Carga todas las relaciones necesarias, incluyendo 'actividades' ordenadas por fecha descendente
         $proyecto->load([
             'montopr' => fn($q) => $q->select('proyecto_id', 'monto_inicial'),
             'fechapr' => fn($q) => $q->select('proyecto_id', 'fecha_inicio', 'fecha_fin_aprox'),
             'planilla.trabajador' => fn($q) => $q->select('id_trabajadores', 'nombre_trab', 'apellido_trab', 'dni_trab'),
             'gastosExtra' => fn($q) => $q->select('id_proyecto', 'alimentacion_general', 'hospedaje', 'pasajes', 'created_at'),
             'materiales.proveedor' => fn($q) => $q->select('id_proveedor', 'nombre_prov'),
-            'egresos' => fn($q) => $q->select('id_proyecto', 'materiales', 'planilla', 'scr', 'gastos_administrativos', 'gastos_extra')
+            'egresos' => fn($q) => $q->select('id_proyecto', 'materiales', 'planilla', 'scr', 'gastos_administrativos', 'gastos_extra'),
+            'actividades' => fn($q) => $q->orderByDesc('fecha_actividad') // Carga actividades ordenadas
         ]);
 
-        // Tabla de proveedores con suma de montos
+        // Tabla de proveedores con suma de montos (como en tu código original)
         $proveedores = $proyecto->materiales->groupBy('id_proveedor')->map(function ($group) {
             return [
                 'nombre' => $group->first()->proveedor->nombre_prov,
@@ -1846,10 +1897,16 @@ public function destroyMaterial($proyecto, $id)
             ];
         })->values();
 
-        // Renderizar la vista para PDF
-        $pdf = PDF::loadView('admin.proyectos.exportacion.pdf-export', compact('proyecto', 'proveedores'));
+        // Genera el PDF
+        $pdf = Pdf::loadView('admin.proyectos.exportacion.pdf-export', compact('proyecto', 'proveedores'));
 
-        // Descargar el PDF
+        // Opciones de DomPDF
+        $pdf->setOption('isRemoteEnabled', true); // Ya lo cambiaste, pero asegúrate de que esté aquí para imágenes remotas (Imgur)
+        $pdf->setOption('footer-html', view('admin.proyectos.exportacion.footer')->render()); // Agrega el footer para paginación
+        $pdf->setOption('footer-spacing', 10); // Espacio entre contenido y footer (opcional, ajusta si necesitas)
+        $pdf->setPaper('A4', 'portrait'); // Tamaño de página (puedes cambiar a 'letter' si prefieres)
+
+        // Descarga el PDF
         return $pdf->download('Proyecto_' . $proyecto->nombre_proyecto . '.pdf');
     }
 

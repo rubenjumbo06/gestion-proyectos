@@ -82,4 +82,9 @@ class Proyectos extends Model
     {
         return 'id_proyecto';
     }
+
+    public function actividades()
+    {
+        return $this->hasMany(ActividadProyecto::class, 'proyecto_id', 'id_proyecto');
+    }
 }

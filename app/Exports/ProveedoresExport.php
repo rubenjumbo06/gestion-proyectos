@@ -18,6 +18,8 @@ class ProveedoresExport implements FromCollection, WithHeadings, WithStyles, Wit
     public function collection()
     {
         return Proveedor::select(
+            'tipo_identificacion',
+            'identificacion',
             'nombre_prov',
             'descripcion_prov'
         )->get();
@@ -26,6 +28,8 @@ class ProveedoresExport implements FromCollection, WithHeadings, WithStyles, Wit
     public function headings(): array
     {
         return [
+            'Tipo ID',
+            'N° Identificación',
             'Nombre',
             'Descripción'
         ];
@@ -34,37 +38,32 @@ class ProveedoresExport implements FromCollection, WithHeadings, WithStyles, Wit
     public function map($row): array
     {
         return [
+            $row->tipo_identificacion ?? '-',
+            $row->identificacion ?? '-',
             $row->nombre_prov,
-            $row->descripcion_prov ?? '', // Maneja valores nulos en descripción
+            $row->descripcion_prov ?? 'Sin descripción',
         ];
     }
 
     public function styles(Worksheet $sheet)
     {
-        // Aplicar estilo a la cabecera
-        $sheet->getStyle('A1:B1')->applyFromArray([
+        // Estilo cabecera
+        $sheet->getStyle('A1:D1')->applyFromArray([
             'font' => ['bold' => true, 'color' => ['rgb' => 'FFFFFF']],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'c00c0c']], // Color azul
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'c00c0c']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
         ]);
 
-        // Aplicar centrado horizontal y vertical a la columna "Nombre" (A)
+        // Centrado y bordes para toda la tabla
         $highestRow = $sheet->getHighestRow();
-        $sheet->getStyle('A2:A' . $highestRow)->applyFromArray([
-            'alignment' => [
-                'horizontal' => Alignment::HORIZONTAL_CENTER,
-                'vertical' => Alignment::VERTICAL_CENTER,
-            ],
-        ]);
-
-        // Aplicar ajuste de texto (wrap text) y bordes a toda la tabla
-        $highestRow = $sheet->getHighestRow();
-        $sheet->getStyle('A1:B' . $highestRow)->applyFromArray([
+        $sheet->getStyle('A1:D' . $highestRow)->applyFromArray([
             'borders' => [
                 'allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN],
             ],
             'alignment' => [
-                'wrapText' => true, // Permite que el texto se divida en varias líneas
+                'horizontal' => Alignment::HORIZONTAL_CENTER,
+                'vertical' => Alignment::VERTICAL_CENTER,
+                'wrapText' => true,
             ],
         ]);
     }
@@ -72,8 +71,10 @@ class ProveedoresExport implements FromCollection, WithHeadings, WithStyles, Wit
     public function columnWidths(): array
     {
         return [
-            'A' => 30, // Ancho para Nombre
-            'B' => 100, // Ancho para Descripción
+            'A' => 12,  // Tipo ID
+            'B' => 18,  // N° Identificación
+            'C' => 35,  // Nombre
+            'D' => 60,  // Descripción
         ];
     }
 
