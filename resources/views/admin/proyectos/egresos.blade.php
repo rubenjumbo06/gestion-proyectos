@@ -1,53 +1,69 @@
 {{-- resources/views/admin/proyectos/egresos.blade.php --}}
 @php
-    // Determinar id del proyecto (compatibilidad id_proyecto / id)
+    // Determinar id del proyecto
     $proyectoId = $proyecto->id_proyecto ?? $proyecto->id ?? null;
 
-    // Calcular montos sumados en PHP (evita inyección compleja en JS)
+    // Calcular montos sumados en PHP
     $sum_materiales = 0;
     $sum_planilla = 0;
     $sum_gastos_extra = 0;
-    try {
-        if ($proyectoId) {
+    $sum_servicios = 0;
+
+    if ($proyectoId) {
+        try {
             $sum_materiales = $proyecto->materiales()->sum('monto_mat');
             $sum_planilla = $proyecto->planilla()->sum(DB::raw('pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador'));
             $sum_gastos_extra = $proyecto->gastosExtra()->sum(DB::raw('alimentacion_general + hospedaje + pasajes'));
-        }
-    } catch (\Throwable $e) {
-        $sum_materiales = 0;
-        $sum_planilla = 0;
-        $sum_gastos_extra = 0;
-    }
-
-    // Monto inicial (fallebacks)
-    $monto_inicial = 0;
-    try {
-        if ($proyectoId) {
-            $monto_inicial = optional($proyecto->montopr)->monto_inicial
-                ?? DB::table('montopr')->where('proyecto_id', $proyectoId)->value('monto_inicial')
-                ?? DB::table('control_gastos')->where('id_proyecto', $proyectoId)->value('monto_inicial')
-                ?? 0;
-        }
-    } catch (\Throwable $e) {
-        $monto_inicial = 0;
-    }
-
-    // Asegurarnos de obtener el ÚLTIMO egreso persistido en BD (si no fue pasado por el controlador)
-    if (!isset($egreso) || !$egreso) {
-        try {
-            $egreso = null;
-            if ($proyectoId) {
-                $egreso = DB::table('egresos')
-                    ->where('id_proyecto', $proyectoId)
-                    ->orderBy('id_egreso', 'desc')
-                    ->first();
-            }
+            $sum_servicios = $proyecto->servicios()->sum('monto');
         } catch (\Throwable $e) {
-            $egreso = null;
+            // Silenciar errores de sumas
         }
     }
-@endphp
 
+    // Total preliminar (solo rubros reales)
+    $total_preliminar = $sum_materiales + $sum_planilla + $sum_gastos_extra + $sum_servicios;
+
+    // === MONTO INICIAL (SEGURO) ===
+    $monto_inicial = 0.0;
+    if ($proyectoId) {
+        try {
+            $monto_inicial = DB::table('montopr')
+                ->where('proyecto_id', $proyectoId)
+                ->value('monto_inicial');
+
+            if (!$monto_inicial) {
+                $monto_inicial = DB::table('control_gastos')
+                    ->where('id_proyecto', $proyectoId)
+                    ->value('monto_inicial');
+            }
+            $monto_inicial = (float) ($monto_inicial ?? 0);
+        } catch (\Throwable $e) {
+            $monto_inicial = 0.0;
+        }
+    }
+
+    // === ÚLTIMO EGRESO ===
+    $egreso = null;
+    if ($proyectoId) {
+        try {
+            $egreso = DB::table('egresos')
+                ->where('id_proyecto', $proyectoId)
+                ->orderBy('id_egreso', 'desc')
+                ->first();
+        } catch (\Throwable $e) {
+            // Silenciar
+        }
+    }
+
+    // === UTILIDAD PRELIMINAR (SIN TRY-CATCH) ===
+    $total_egresos_real = $total_preliminar;
+
+    if ($egreso && isset($egreso->total_egresos) && $egreso->total_egresos !== null) {
+        $total_egresos_real = (float) $egreso->total_egresos;
+    }
+
+    $utilidad_preliminar = (float) $monto_inicial - (float) $total_egresos_real;
+@endphp
 @if(session('success'))
     <div class="alert alert-success alert-dismissible">
         <button type="button" class="close" data-dismiss="alert">×</button>
@@ -89,6 +105,12 @@
                     </td>
                 </tr>
                 <tr>
+                    <td>Servicios (Suma total)</td>
+                    <td id="pre_servicios">
+                        {{ number_format($sum_servicios, 2) }}
+                    </td>
+                </tr>
+                <tr>
                     <td>Gastos Extras (Suma total)</td>
                     <td id="pre_gastos_extra">
                         {{ number_format($sum_gastos_extra, 2) }}
@@ -97,13 +119,21 @@
                 <tr>
                     <td>SCTR aplicado</td>
                     <td id="pre_scr">
-                        {{ number_format(optional($egreso)->scr ?? 0, 2) }}
+                        @if($egreso)
+                            {{ number_format($egreso->scr ?? 0, 2) }}
+                        @else
+                            <span class="text-muted">0.00 (pendiente)</span>
+                        @endif
                     </td>
                 </tr>
                 <tr>
-                    <td>Gastos Administrativos (aplicados)</td>
+                    <td>Gastos Administrativos</td>
                     <td id="pre_gastos_admin">
-                        {{ number_format(optional($egreso)->gastos_administrativos ?? 0, 2) }}
+                        @if($egreso)
+                            {{ number_format($egreso->gastos_administrativos ?? 0, 2) }}
+                        @else
+                            <span class="text-muted">0.00 (pendiente)</span>
+                        @endif
                     </td>
                 </tr>
                 <tr class="bg-warning">
@@ -112,7 +142,8 @@
                         @if($egreso && isset($egreso->total_egresos))
                             {{ number_format($egreso->total_egresos, 2) }}
                         @else
-                            {{ number_format($sum_materiales + $sum_planilla + $sum_gastos_extra, 2) }}
+                            {{ number_format($total_preliminar, 2) }}
+                            <small class="text-muted d-block">*Sin SCTR ni Admin</small>
                         @endif
                     </td>
                 </tr>
@@ -124,7 +155,9 @@
                 </tr>
                 <tr class="bg-info">
                     <td><strong>Utilidad estimada (Monto inicial - Total egresos)</strong></td>
-                    <td id="pre_utilidad">S/0.00</td>
+                    <td id="pre_utilidad">
+                        {{ number_format($utilidad_preliminar, 2) }}
+                    </td>
                 </tr>
             </tbody>
         </table>
@@ -248,8 +281,6 @@
         </div>
     </div>
 </div>
-</div>
-
 
 <!-- Librerías para export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -265,6 +296,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const preMateriales = document.getElementById('pre_materiales');
     const prePlanilla = document.getElementById('pre_planilla');
+    const preServicios = document.getElementById('pre_servicios');
     const preGastosExtra = document.getElementById('pre_gastos_extra');
     const preScr = document.getElementById('pre_scr');
     const preGastosAdmin = document.getElementById('pre_gastos_admin');
@@ -283,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportPdfBtn = document.getElementById('exportPdfBtn');
     const exportExcelBtn = document.getElementById('exportExcelBtn');
 
-    // Valores inyectados desde PHP (se usan de forma segura)
+    // Valores inyectados desde PHP
     const url = '{{ route("proyectos.calculate.egresos", $proyectoId ?? ($proyecto->id ?? 0)) }}';
     const token = '{{ csrf_token() }}';
     const montoInicial = Number({{ $monto_inicial ?? 0 }});
@@ -293,8 +325,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const sumMaterialesServer = Number({{ $sum_materiales }});
     const sumPlanillaServer = Number({{ $sum_planilla }});
     const sumGastosExtraServer = Number({{ $sum_gastos_extra }});
+    const sumServiciosServer = Number({{ $sum_servicios }}); // NUEVO
 
-    // existingEgresos: estructura JS (obj) o null — generado con json_encode en PHP
+    // existingEgresos: estructura JS (obj) o null
     const existingEgresos = {!! $egreso ? json_encode((array)$egreso) : 'null' !!};
 
     const fmt = (n) => `S/${Number(n || 0).toFixed(2)}`;
@@ -308,53 +341,59 @@ document.addEventListener('DOMContentLoaded', () => {
         if (preScr) preScr.textContent = Number(existingEgresos.scr || 0).toFixed(2);
         if (preGastosAdmin) preGastosAdmin.textContent = Number(existingEgresos.gastos_administrativos || 0).toFixed(2);
 
-        let totalPre = existingEgresos.total_egresos ?? (sumMaterialesServer + sumPlanillaServer + sumGastosExtraServer + Number(existingEgresos.scr || 0) + Number(existingEgresos.gastos_administrativos || 0));
+        let totalPre = existingEgresos.total_egresos ?? (sumMaterialesServer + sumPlanillaServer + sumGastosExtraServer + sumServiciosServer + Number(existingEgresos.scr || 0) + Number(existingEgresos.gastos_administrativos || 0));
         if (preTotal) preTotal.textContent = Number(totalPre || 0).toFixed(2);
         if (preMontoInicial) preMontoInicial.textContent = montoInicial.toFixed(2);
 
         const utilidadEstim = existingEgresos.utilidad !== undefined ? Number(existingEgresos.utilidad) : (montoInicial - Number(totalPre || 0));
         if (preUtilidad) preUtilidad.textContent = fmt(utilidadEstim);
 
-            // llenar tabla calculada
-            const m = Number(existingEgresos.materiales ?? sumMaterialesServer);
-            const p = Number(existingEgresos.planilla ?? sumPlanillaServer);
-            const ge = Number(existingEgresos.gastos_extra ?? sumGastosExtraServer);
-            const s = Number(existingEgresos.scr || 0);
-            const ga = Number(existingEgresos.gastos_administrativos || 0);
-            const total = Number(existingEgresos.total_egresos ?? (m + p + ge + s + ga));
+        // llenar tabla calculada
+        const m = Number(existingEgresos.materiales ?? sumMaterialesServer);
+        const p = Number(existingEgresos.planilla ?? sumPlanillaServer);
+        const se = Number(existingEgresos.servicios ?? sumServiciosServer); // NUEVO
+        const ge = Number(existingEgresos.gastos_extra ?? sumGastosExtraServer);
+        const s = Number(existingEgresos.scr || 0);
+        const ga = Number(existingEgresos.gastos_administrativos || 0);
+        const total = Number(existingEgresos.total_egresos ?? (m + p + se + ge + s + ga));
 
-            if (egresosTableBody) {
-                egresosTableBody.innerHTML = `
-                    <tr>
-                        <td>Materiales</td>
-                        <td>${fmt(m)}</td>
-                        <td>Suma total de materiales</td>
-                    </tr>
-                    <tr>
-                        <td>Planilla</td>
-                        <td>${fmt(p)}</td>
-                        <td>Incluye pago, alimentación, hospedaje, pasajes</td>
-                    </tr>
-                    <tr>
-                        <td>SCTR</td>
-                        <td>${fmt(s)}</td>
-                        <td>Monto fijo por proyecto</td>
-                    </tr>
-                    <tr>
-                        <td>Gastos Administrativos</td>
-                        <td>${fmt(ga)}</td>
-                        <td>Monto único por proyecto</td>
-                    </tr>
-                    <tr>
-                        <td>Gastos Extra</td>
-                        <td>${fmt(ge)}</td>
-                        <td>Otros gastos asociados</td>
-                    </tr>
-                `;
-                totalEgresos.innerHTML = `<strong>${fmt(total)}</strong>`;
-                utilidadEl.innerHTML = `<strong>${fmt(utilidadEstim)}</strong>`;
-                egresosTableContainer.classList.remove('hidden');
-            }
+        if (egresosTableBody) {
+            egresosTableBody.innerHTML = `
+                <tr>
+                    <td>Materiales</td>
+                    <td>${fmt(m)}</td>
+                    <td>Suma total de materiales</td>
+                </tr>
+                <tr>
+                    <td>Planilla</td>
+                    <td>${fmt(p)}</td>
+                    <td>Incluye pago, alimentación, hospedaje, pasajes</td>
+                </tr>
+                <tr>
+                    <td>Servicios</td>
+                    <td>${fmt(se)}</td>
+                    <td>Suma total de servicios contratados</td>
+                </tr>
+                <tr>
+                    <td>Gastos Extra</td>
+                    <td>${fmt(ge)}</td>
+                    <td>Otros gastos asociados</td>
+                </tr>
+                <tr>
+                    <td>SCTR</td>
+                    <td>${fmt(s)}</td>
+                    <td>Monto fijo por proyecto</td>
+                </tr>
+                <tr>
+                    <td>Gastos Administrativos</td>
+                    <td>${fmt(ga)}</td>
+                    <td>Monto único por proyecto</td>
+                </tr>
+            `;
+            totalEgresos.innerHTML = `<strong>${fmt(total)}</strong>`;
+            utilidadEl.innerHTML = `<strong>${fmt(utilidadEstim)}</strong>`;
+            egresosTableContainer.classList.remove('hidden');
+        }
 
         // reporte exportable
         if (egresosReportBody) {
@@ -364,7 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="py-2 px-4 border-b">${fmt(total)}</td>
                 </tr>
             `;
-            egresosReportContainer.classList.remove('hidden');
+            egresosReportContainer?.classList.remove('hidden');
             initDragAndDrop();
         }
     }
@@ -383,7 +422,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Llamada al backend para calcular y guardar usando el SP via controlador
+    // Llamada al backend
     async function handleCalculate() {
         if (!calculateBtn) return;
 
@@ -425,14 +464,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const payload = json.data ?? json;
             const mat = Number(payload.materiales || 0);
             const plan = Number(payload.planilla || 0);
+            const se = Number(payload.servicios || 0); // NUEVO
             const ge = Number(payload.gastos_extra || 0);
             const s = Number(payload.scr || 0);
             const ga = Number(payload.gastos_administrativos ?? payload.gastos_admin ?? 0);
-            const total = Number(payload.total_egresos || (mat + plan + ge + s + ga));
+            const total = Number(payload.total_egresos || (mat + plan + se + ge + s + ga));
             const utilidadFromServer = payload.utilidad !== undefined ? Number(payload.utilidad) : null;
-            const utilidadFinal = utilidadFromServer !== null ? utilidadFromServer : (montoInicial - Number(total || 0));
+            const utilidadFinal = utilidadFromServer !== null ? utilidadFromServer : (montoInicial - total);
 
-            // actualizar vista con payload (sin recargar)
+            // actualizar tabla calculada
             if (egresosTableBody) {
                 egresosTableBody.innerHTML = `
                     <tr>
@@ -446,6 +486,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>Incluye pago, alimentación, hospedaje, pasajes</td>
                     </tr>
                     <tr>
+                        <td>Servicios</td>
+                        <td>${fmt(se)}</td>
+                        <td>Suma total de servicios contratados</td>
+                    </tr>
+                    <tr>
+                        <td>Gastos Extra</td>
+                        <td>${fmt(ge)}</td>
+                        <td>Otros gastos asociados</td>
+                    </tr>
+                    <tr>
                         <td>SCTR</td>
                         <td>${fmt(s)}</td>
                         <td>Monto fijo por proyecto</td>
@@ -455,23 +505,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td>${fmt(ga)}</td>
                         <td>Monto único por proyecto</td>
                     </tr>
-                    <tr>
-                        <td>Gastos Extra</td>
-                        <td>${fmt(ge)}</td>
-                        <td>Otros gastos asociados</td>
-                    </tr>
                 `;
                 totalEgresos.innerHTML = `<strong>${fmt(total)}</strong>`;
                 utilidadEl.innerHTML = `<strong>${fmt(utilidadFinal)}</strong>`;
                 egresosTableContainer.classList.remove('hidden');
             }
 
-            // actualizar resumen preliminar visual
+            // actualizar resumen preliminar
             if (preScr) preScr.textContent = Number(s).toFixed(2);
             if (preGastosAdmin) preGastosAdmin.textContent = Number(ga).toFixed(2);
             if (preTotal) preTotal.textContent = Number(total).toFixed(2);
             if (preMateriales) preMateriales.textContent = Number(mat).toFixed(2);
             if (prePlanilla) prePlanilla.textContent = Number(plan).toFixed(2);
+            if (preServicios) preServicios.textContent = Number(se).toFixed(2);
             if (preGastosExtra) preGastosExtra.textContent = Number(ge).toFixed(2);
             if (preMontoInicial) preMontoInicial.textContent = Number(montoInicial || 0).toFixed(2);
             if (preUtilidad) preUtilidad.textContent = fmt(utilidadFinal);
@@ -484,19 +530,15 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td class="py-2 px-4 border-b">${fmt(total)}</td>
                     </tr>
                 `;
-                egresosReportContainer.classList.remove('hidden');
+                egresosReportContainer?.classList.remove('hidden');
                 initDragAndDrop();
             }
 
-            // bloquear inputs y ocultarlos (el botón queda)
+            // bloquear inputs
             if (scrInput) scrInput.setAttribute('disabled', 'disabled');
             if (gastosInput) gastosInput.setAttribute('disabled', 'disabled');
             if (egresosInputsContainer) egresosInputsContainer.classList.add('hidden');
             if (calculateBtn) calculateBtn.textContent = 'Recalcular Egresos';
-
-            // <- OPCIONAL: si quieres forzar que el usuario vea los datos persistidos en BD,
-            // descomenta la línea siguiente para recargar la página:
-            // location.reload();
 
         } catch (err) {
             console.error('Error en calcular egresos:', err);
@@ -539,13 +581,13 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Export PDF / Excel (usa proyectoNombre y proyectoId)
+    // Export PDF / Excel
     if (exportPdfBtn) {
         exportPdfBtn.addEventListener('click', () => {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
             const table = document.getElementById('egresosReportTable');
-            const rows = table.querySelectorAll('tr');
+            const rows = table?.querySelectorAll('tr');
             let y = 20;
 
             doc.setFontSize(16);
@@ -553,7 +595,7 @@ document.addEventListener('DOMContentLoaded', () => {
             doc.setFontSize(12);
             doc.text('Fecha: ' + new Date().toLocaleDateString(), 10, 20);
 
-            rows.forEach(row => {
+            rows?.forEach(row => {
                 const cells = row.querySelectorAll('td');
                 if (cells.length > 0) {
                     doc.setFontSize(10);
@@ -580,8 +622,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (exportExcelBtn) {
         exportExcelBtn.addEventListener('click', () => {
             const table = document.getElementById('egresosReportTable');
-            const wb = XLSX.utils.table_to_book(table, { sheet: 'Reporte Egresos' });
-            XLSX.writeFile(wb, `Reporte_Egresos_{{ $proyectoId ?? 0 }}_${new Date().toISOString().split('T')[0]}.xlsx`);
+            if (table) {
+                const wb = XLSX.utils.table_to_book(table, { sheet: 'Reporte Egresos' });
+                XLSX.writeFile(wb, `Reporte_Egresos_{{ $proyectoId ?? 0 }}_${new Date().toISOString().split('T')[0]}.xlsx`);
+            }
         });
     }
 });
@@ -707,6 +751,3 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 </style>
 @endpush
-
-
-

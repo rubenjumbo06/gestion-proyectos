@@ -188,65 +188,111 @@
 @forelse ($proyectos as $proyecto)
     @empty
     @endforelse
+@php
+    // Ya tienes $montosApartados desde el controlador
+@endphp
+
 @foreach ($proyectos as $proyecto)
-    <div class="modal fade" id="editProyectoModal{{ $proyecto->id_proyecto }}" tabindex="-1" role="dialog" aria-labelledby="editProyectoModalLabel{{ $proyecto->id_proyecto }}">
+@php
+    // Obtener montos para este proyecto
+    $montos = $montosApartados->get($proyecto->id_proyecto);
+    $material = $montos->monto_material ?? 0;
+    $operativos = $montos->monto_operativos ?? 0;
+    $servicios = $montos->monto_servicios ?? 0;
+@endphp
+
+<div class="modal fade" id="editProyectoModal{{ $proyecto->id_proyecto }}" tabindex="-1" role="dialog" aria-labelledby="editProyectoModalLabel{{ $proyecto->id_proyecto }}">
     <div class="modal-dialog" role="document">
         <div class="modal-content project-modal">
             <form action="{{ route('proyectos.update', $proyecto) }}" method="POST" id="editProyectoForm{{ $proyecto->id_proyecto }}">
                 @csrf
                 @method('PUT')
                 <div class="project-modal-header">
-                    <h4 class="project-modal-title" id="editProyectoModalLabel{{ $proyecto->id_proyecto }}">Editar Proyecto: {{ $proyecto->nombre_proyecto }}</h4>
-                    <button type="button" class="project-modal-close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+                    <h4 class="project-modal-title" id="editProyectoModalLabel{{ $proyecto->id_proyecto }}">
+                        Editar Proyecto: {{ $proyecto->nombre_proyecto }}
+                    </h4>
                 </div>
                 <div class="project-modal-body" style="max-height: 70vh; overflow-y: auto;">
+                    <!-- Nombre y Cliente -->
                     <div class="project-form-group">
                         <label for="nombre_proyecto_{{ $proyecto->id_proyecto }}" class="project-label">Nombre del Proyecto</label>
-                        <input type="text" name="nombre_proyecto" id="nombre_proyecto_{{ $proyecto->id_proyecto }}" class="project-input" value="{{ old('nombre_proyecto', $proyecto->nombre_proyecto) }}" required placeholder="Ingresa el nombre del proyecto">
+                        <input type="text" name="nombre_proyecto" id="nombre_proyecto_{{ $proyecto->id_proyecto }}" class="project-input"
+                               value="{{ old('nombre_proyecto', $proyecto->nombre_proyecto) }}" required>
                         <span class="project-error" id="nombre_proyecto_{{ $proyecto->id_proyecto }}_error"></span>
                     </div>
+
                     <div class="project-form-group">
                         <label for="cliente_proyecto_{{ $proyecto->id_proyecto }}" class="project-label">Cliente del Proyecto</label>
-                        <input type="text" name="cliente_proyecto" id="cliente_proyecto_{{ $proyecto->id_proyecto }}" class="project-input" value="{{ old('cliente_proyecto', $proyecto->cliente_proyecto) }}" required placeholder="Ingresa el cliente del proyecto">
+                        <input type="text" name="cliente_proyecto" id="cliente_proyecto_{{ $proyecto->id_proyecto }}" class="project-input"
+                               value="{{ old('cliente_proyecto', $proyecto->cliente_proyecto) }}" required>
                         <span class="project-error" id="cliente_proyecto_{{ $proyecto->id_proyecto }}_error"></span>
                     </div>
-                    <div class="project-form-group">
+
+                    <!-- Descripción -->
+                   <div class="project-form-group">
                         <label for="descripcion_proyecto_{{ $proyecto->id_proyecto }}" class="project-label">Descripción del Proyecto</label>
-                        <textarea name="descripcion_proyecto" id="descripcion_proyecto_{{ $proyecto->id_proyecto }}" class="project-input" rows="5" placeholder="Ingresa una descripción">{{ old('descripcion_proyecto', $proyecto->descripcion_proyecto ?? '') }}</textarea>
+                        <textarea name="descripcion_proyecto" id="descripcion_proyecto_{{ $proyecto->id_proyecto }}" class="project-input" rows="5"
+                                  placeholder="Ingresa una descripción">{{ old('descripcion_proyecto', $proyecto->descripcion_proyecto ?? '') }}</textarea>
                         <span class="project-error" id="descripcion_proyecto_{{ $proyecto->id_proyecto }}_error"></span>
                     </div>
+
+                    <!-- Trabajadores + Materiales -->
                     <div class="project-form-group project-flex">
                         <div class="project-flex-item">
                             <label for="cantidad_trabajadores_{{ $proyecto->id_proyecto }}" class="project-label">Cantidad de Trabajadores</label>
-                            <input type="number" name="cantidad_trabajadores" id="cantidad_trabajadores_{{ $proyecto->id_proyecto }}" class="project-input project-number-only" value="{{ old('cantidad_trabajadores', $proyecto->cantidad_trabajadores ?? 0) }}" min="0" required placeholder="Ingresa la cantidad">
+                            <input type="number" name="cantidad_trabajadores" id="cantidad_trabajadores_{{ $proyecto->id_proyecto }}"
+                                   class="project-input project-number-only"
+                                   value="{{ old('cantidad_trabajadores', $proyecto->cantidad_trabajadores ?? 0) }}" min="0" required>
                             <span class="project-error" id="cantidad_trabajadores_{{ $proyecto->id_proyecto }}_error"></span>
                         </div>
                         <div class="project-flex-item">
-                            <label for="sueldo_{{ $proyecto->id_proyecto }}" class="project-label">Sueldo</label>
-                            <input type="number" name="sueldo" id="sueldo_{{ $proyecto->id_proyecto }}" class="project-input project-number-only" value="{{ old('sueldo', $proyecto->sueldo ?? 0) }}" step="0.01" min="0" required placeholder="Ingresa el sueldo">
-                            <span class="project-error" id="sueldo_{{ $proyecto->id_proyecto }}_error"></span>
+                            <label for="monto_material_{{ $proyecto->id_proyecto }}" class="project-label">Monto para Materiales</label>
+                            <input type="number" name="monto_material" id="monto_material_{{ $proyecto->id_proyecto }}"
+                                   class="project-input project-number-only"
+                                   value="{{ old('monto_material', $material) }}" step="0.01" min="0" required>
+                            <span class="project-error" id="monto_material_{{ $proyecto->id_proyecto }}_error"></span>
                         </div>
                     </div>
-                    <div class="project-form-group">
-                        <label for="monto_{{ $proyecto->id_proyecto }}" class="project-label">Monto</label>
-                        <input type="number" name="monto" id="monto_{{ $proyecto->id_proyecto }}" class="project-input project-number-only" value="{{ old('monto', $proyecto->monto ?? 0) }}" step="0.01" min="0" required placeholder="Ingresa el monto">
-                        <span class="project-error" id="monto_{{ $proyecto->id_proyecto }}_error"></span>
+
+                    <!-- Personal + Servicios -->
+                    <div class="project-form-group project-flex">
+                        <div class="project-flex-item">
+                            <label for="monto_operativos_{{ $proyecto->id_proyecto }}" class="project-label">Monto para Personal</label>
+                            <input type="number" name="monto_operativos" id="monto_operativos_{{ $proyecto->id_proyecto }}"
+                                   class="project-input project-number-only"
+                                   value="{{ old('monto_operativos', $operativos) }}" step="0.01" min="0" required>
+                            <span class="project-error" id="monto_operativos_{{ $proyecto->id_proyecto }}_error"></span>
+                        </div>
+                        <div class="project-flex-item">
+                            <label for="monto_servicios_{{ $proyecto->id_proyecto }}" class="project-label">Monto para Servicios</label>
+                            <input type="number" name="monto_servicios" id="monto_servicios_{{ $proyecto->id_proyecto }}"
+                                   class="project-input project-number-only"
+                                   value="{{ old('monto_servicios', $servicios) }}" step="0.01" min="0" required>
+                            <span class="project-error" id="monto_servicios_{{ $proyecto->id_proyecto }}_error"></span>
+                        </div>
                     </div>
+
+                    <!-- Fechas -->
                     <div class="project-form-group project-flex">
                         <div class="project-flex-item">
                             <label for="fecha_inicio_{{ $proyecto->id_proyecto }}" class="project-label">Fecha de Inicio</label>
-                            <input type="date" name="fecha_inicio" id="fecha_inicio_{{ $proyecto->id_proyecto }}" class="project-input" value="{{ old('fecha_inicio', $proyecto->fecha_inicio ? \Carbon\Carbon::parse($proyecto->fecha_inicio)->format('Y-m-d') : '') }}" required>
+                            <input type="date" name="fecha_inicio" id="fecha_inicio_{{ $proyecto->id_proyecto }}" class="project-input"
+                                   value="{{ old('fecha_inicio', $proyecto->fecha_inicio ? \Carbon\Carbon::parse($proyecto->fecha_inicio)->format('Y-m-d') : '') }}" required>
                             <span class="project-error" id="fecha_inicio_{{ $proyecto->id_proyecto }}_error"></span>
                         </div>
                         <div class="project-flex-item">
                             <label for="fecha_fin_aprox_{{ $proyecto->id_proyecto }}" class="project-label">Fecha de Fin Aproximada</label>
-                            <input type="date" name="fecha_fin_aprox" id="fecha_fin_aprox_{{ $proyecto->id_proyecto }}" class="project-input" value="{{ old('fecha_fin_aprox', $proyecto->fecha_fin_aprox ? \Carbon\Carbon::parse($proyecto->fecha_fin_aprox)->format('Y-m-d') : '') }}">
+                            <input type="date" name="fecha_fin_aprox" id="fecha_fin_aprox_{{ $proyecto->id_proyecto }}" class="project-input"
+                                   value="{{ old('fecha_fin_aprox', $proyecto->fecha_fin_aprox ? \Carbon\Carbon::parse($proyecto->fecha_fin_aprox)->format('Y-m-d') : '') }}">
                             <span class="project-error" id="fecha_fin_aprox_{{ $proyecto->id_proyecto }}_error"></span>
                         </div>
                     </div>
                 </div>
+
                 <div class="project-modal-footer" style="position: sticky; bottom: 0; background: white; padding: 10px; border-top: 1px solid #ddd;">
-                    <button type="submit" class="project-btn project-btn-primary" id="submit-edit-proyecto-{{ $proyecto->id_proyecto }}">Actualizar</button>
+                    <button type="submit" class="project-btn project-btn-primary" id="submit-edit-proyecto-{{ $proyecto->id_proyecto }}">
+                        Actualizar
+                    </button>
                     <button type="button" class="project-btn project-btn-default" data-dismiss="modal">Cancelar</button>
                 </div>
             </form>
@@ -254,7 +300,6 @@
     </div>
 </div>
 @endforeach
-
 <!-- Script para manejar el menú contextual, validación y búsqueda -->
 <script>
     function toggleContextMenu(menuId) {
