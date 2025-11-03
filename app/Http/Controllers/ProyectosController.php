@@ -846,149 +846,149 @@ class ProyectosController extends Controller
     }
 
     public function storeMaterial(Request $request, $proyecto)
-{
-    try {
-        if ($this->isProyectoFinalizado($proyecto)) {
-            return response()->json(['error' => 'El proyecto ya está finalizado. No se pueden agregar más registros.'], 400);
+    {
+        try {
+            if ($this->isProyectoFinalizado($proyecto)) {
+                return response()->json(['error' => 'El proyecto ya está finalizado. No se pueden agregar más registros.'], 400);
+            }
+
+            $request->validate([
+                'descripcion_mat' => 'required|string|max:255',
+                'id_proveedor' => 'required|exists:proveedores,id_proveedor',
+                'monto_mat' => 'required|numeric|min:0',
+            ]);
+
+            $proyecto = Proyectos::findOrFail($proyecto);
+
+            // Presupuesto: Materiales (bloquear si excede)
+            $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
+            $assigned = (float)($apartado->monto_material ?? 0);
+            $spent = (float) DB::table('materiales')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->sum('monto_mat');
+            $nuevoMonto = (float) $request->monto_mat;
+            if ($spent + $nuevoMonto > $assigned + 1e-9) {
+                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Materiales.'], 400);
+            }
+
+            $material = Materiales::create([
+                'id_proyecto' => $proyecto->id_proyecto,
+                'descripcion_mat' => $request->descripcion_mat,
+                'id_proveedor' => $request->id_proveedor,
+                'monto_mat' => $request->monto_mat,
+                'fecha_mat' => now(),
+            ]);
+
+            return response()->json([
+                'message' => 'Material agregado correctamente.',
+                'material' => [
+                    'id_material' => $material->id_material,
+                    'descripcion_mat' => $material->descripcion_mat,
+                    'proveedor_nombre' => $material->proveedor->nombre_prov,
+                    'monto_mat' => $material->monto_mat,
+                    'fecha_mat' => \Carbon\Carbon::parse($material->fecha_mat)->format('d/m/Y'),
+                    'updated_at' => $material->updated_at ? \Carbon\Carbon::parse($material->updated_at)->format('d/m/Y') : null
+                ]
+            ], 201);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => implode(', ', $e->errors())], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al agregar material: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'proyecto_id' => $proyecto,
+            ]);
+            return response()->json(['error' => 'Error al agregar el material: ' . $e->getMessage()], 500);
         }
-
-        $request->validate([
-            'descripcion_mat' => 'required|string|max:255',
-            'id_proveedor' => 'required|exists:proveedores,id_proveedor',
-            'monto_mat' => 'required|numeric|min:0',
-        ]);
-
-        $proyecto = Proyectos::findOrFail($proyecto);
-
-        // Presupuesto: Materiales (bloquear si excede)
-        $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
-        $assigned = (float)($apartado->monto_material ?? 0);
-        $spent = (float) DB::table('materiales')
-            ->where('id_proyecto', $proyecto->id_proyecto)
-            ->whereNull('deleted_at')
-            ->sum('monto_mat');
-        $nuevoMonto = (float) $request->monto_mat;
-        if ($spent + $nuevoMonto > $assigned + 1e-9) {
-            return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Materiales.'], 400);
-        }
-
-        $material = Materiales::create([
-            'id_proyecto' => $proyecto->id_proyecto,
-            'descripcion_mat' => $request->descripcion_mat,
-            'id_proveedor' => $request->id_proveedor,
-            'monto_mat' => $request->monto_mat,
-            'fecha_mat' => now(),
-        ]);
-
-        return response()->json([
-            'message' => 'Material agregado correctamente.',
-            'material' => [
-                'id_material' => $material->id_material,
-                'descripcion_mat' => $material->descripcion_mat,
-                'proveedor_nombre' => $material->proveedor->nombre_prov,
-                'monto_mat' => $material->monto_mat,
-                'fecha_mat' => \Carbon\Carbon::parse($material->fecha_mat)->format('d/m/Y'),
-                'updated_at' => $material->updated_at ? \Carbon\Carbon::parse($material->updated_at)->format('d/m/Y') : null
-            ]
-        ], 201);
-    } catch (ValidationException $e) {
-        return response()->json(['error' => implode(', ', $e->errors())], 422);
-    } catch (\Exception $e) {
-        Log::error('Error al agregar material: ' . $e->getMessage(), [
-            'request' => $request->all(),
-            'proyecto_id' => $proyecto,
-        ]);
-        return response()->json(['error' => 'Error al agregar el material: ' . $e->getMessage()], 500);
     }
-}
 
-public function updateMaterial(Request $request, $proyecto, $id)
-{
-    try {
-        if ($this->isProyectoFinalizado($proyecto)) {
-            return response()->json(['error' => 'El proyecto ya está finalizado. No se pueden modificar registros.'], 400);
+    public function updateMaterial(Request $request, $proyecto, $id)
+    {
+        try {
+            if ($this->isProyectoFinalizado($proyecto)) {
+                return response()->json(['error' => 'El proyecto ya está finalizado. No se pueden modificar registros.'], 400);
+            }
+
+            $request->validate([
+                'descripcion_mat' => 'required|string|max:255',
+                'id_proveedor' => 'required|exists:proveedores,id_proveedor',
+                'monto_mat' => 'required|numeric|min:0',
+            ]);
+
+            $proyecto = Proyectos::findOrFail($proyecto);
+            $material = Materiales::where('id_proyecto', $proyecto->id_proyecto)
+                ->where('id_material', $id)
+                ->firstOrFail();
+
+            // Presupuesto: Materiales (validar delta)
+            $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
+            $assigned = (float)($apartado->monto_material ?? 0);
+            $spent = (float) DB::table('materiales')
+                ->where('id_proyecto', $proyecto->id_proyecto)
+                ->whereNull('deleted_at')
+                ->sum('monto_mat');
+            $montoActual = (float) $material->monto_mat;
+            $montoNuevo = (float) $request->monto_mat;
+            $nuevoTotal = $spent - $montoActual + $montoNuevo;
+            if ($nuevoTotal > $assigned + 1e-9) {
+                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Materiales.'], 400);
+            }
+
+            $material->update([
+                'descripcion_mat' => $request->descripcion_mat,
+                'id_proveedor' => $request->id_proveedor,
+                'monto_mat' => $request->monto_mat,
+            ]);
+
+            return response()->json([
+                'message' => 'Material actualizado correctamente.',
+                'material' => [
+                    'id_material' => $material->id_material,
+                    'descripcion_mat' => $material->descripcion_mat,
+                    'proveedor_nombre' => $material->proveedor->nombre_prov,
+                    'monto_mat' => $material->monto_mat,
+                    'fecha_mat' => \Carbon\Carbon::parse($material->fecha_mat)->format('d/m/Y'),
+                    'updated_at' => $material->updated_at ? \Carbon\Carbon::parse($material->updated_at)->format('d/m/Y') : null
+                ]
+            ], 200);
+        } catch (ValidationException $e) {
+            return response()->json(['error' => implode(', ', $e->errors())], 422);
+        } catch (\Exception $e) {
+            Log::error('Error al actualizar material: ' . $e->getMessage(), [
+                'request' => $request->all(),
+                'proyecto_id' => $proyecto,
+                'material_id' => $id,
+            ]);
+            return response()->json(['error' => 'Error al actualizar el material: ' . $e->getMessage()], 500);
         }
-
-        $request->validate([
-            'descripcion_mat' => 'required|string|max:255',
-            'id_proveedor' => 'required|exists:proveedores,id_proveedor',
-            'monto_mat' => 'required|numeric|min:0',
-        ]);
-
-        $proyecto = Proyectos::findOrFail($proyecto);
-        $material = Materiales::where('id_proyecto', $proyecto->id_proyecto)
-            ->where('id_material', $id)
-            ->firstOrFail();
-
-        // Presupuesto: Materiales (validar delta)
-        $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
-        $assigned = (float)($apartado->monto_material ?? 0);
-        $spent = (float) DB::table('materiales')
-            ->where('id_proyecto', $proyecto->id_proyecto)
-            ->whereNull('deleted_at')
-            ->sum('monto_mat');
-        $montoActual = (float) $material->monto_mat;
-        $montoNuevo = (float) $request->monto_mat;
-        $nuevoTotal = $spent - $montoActual + $montoNuevo;
-        if ($nuevoTotal > $assigned + 1e-9) {
-            return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Materiales.'], 400);
-        }
-
-        $material->update([
-            'descripcion_mat' => $request->descripcion_mat,
-            'id_proveedor' => $request->id_proveedor,
-            'monto_mat' => $request->monto_mat,
-        ]);
-
-        return response()->json([
-            'message' => 'Material actualizado correctamente.',
-            'material' => [
-                'id_material' => $material->id_material,
-                'descripcion_mat' => $material->descripcion_mat,
-                'proveedor_nombre' => $material->proveedor->nombre_prov,
-                'monto_mat' => $material->monto_mat,
-                'fecha_mat' => \Carbon\Carbon::parse($material->fecha_mat)->format('d/m/Y'),
-                'updated_at' => $material->updated_at ? \Carbon\Carbon::parse($material->updated_at)->format('d/m/Y') : null
-            ]
-        ], 200);
-    } catch (ValidationException $e) {
-        return response()->json(['error' => implode(', ', $e->errors())], 422);
-    } catch (\Exception $e) {
-        Log::error('Error al actualizar material: ' . $e->getMessage(), [
-            'request' => $request->all(),
-            'proyecto_id' => $proyecto,
-            'material_id' => $id,
-        ]);
-        return response()->json(['error' => 'Error al actualizar el material: ' . $e->getMessage()], 500);
     }
-}
 
-public function destroyMaterial($proyecto, $id)
-{
-    try {
-        if ($this->isProyectoFinalizado($proyecto)) {
-            return response()->json(['error' => 'El proyecto ya está finalizado. No se pueden modificar registros.'], 400);
+    public function destroyMaterial($proyecto, $id)
+    {
+        try {
+            if ($this->isProyectoFinalizado($proyecto)) {
+                return response()->json(['error' => 'El proyecto ya está finalizado. No se pueden modificar registros.'], 400);
+            }
+
+            $proyecto = Proyectos::findOrFail($proyecto);
+            $material = Materiales::where('id_proyecto', $proyecto->id_proyecto)
+                ->where('id_material', $id)
+                ->firstOrFail();
+
+            $material->delete();
+
+            return response()->json([
+                'message' => 'Material eliminado correctamente.',
+                'material_id' => $id
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Error al eliminar material: ' . $e->getMessage(), [
+                'proyecto_id' => $proyecto,
+                'material_id' => $id,
+            ]);
+            return response()->json(['error' => 'Error al eliminar el material: ' . $e->getMessage()], 500);
         }
-
-        $proyecto = Proyectos::findOrFail($proyecto);
-        $material = Materiales::where('id_proyecto', $proyecto->id_proyecto)
-            ->where('id_material', $id)
-            ->firstOrFail();
-
-        $material->delete();
-
-        return response()->json([
-            'message' => 'Material eliminado correctamente.',
-            'material_id' => $id
-        ], 200);
-    } catch (\Exception $e) {
-        Log::error('Error al eliminar material: ' . $e->getMessage(), [
-            'proyecto_id' => $proyecto,
-            'material_id' => $id,
-        ]);
-        return response()->json(['error' => 'Error al eliminar el material: ' . $e->getMessage()], 500);
     }
-}
 
     public function getMaterial($proyecto, $id){
         try {
@@ -1572,12 +1572,12 @@ public function destroyMaterial($proyecto, $id)
         return $colors[$entidad] ?? '#000000';
     }
 
-    // Métodos para gastos extras
-    public function storeGastoExtra(Request $request, $proyecto){
+    // === STORE GASTO EXTRA ===
+    public function storeGastoExtra(Request $request, $proyecto)
+    {
         try {
-            // Verificar si el proyecto está finalizado
             if ($this->isProyectoFinalizado($proyecto)) {
-                return response()->json(['error' => 'El proyecto ya esta finalizado. No se pueden agregar más registros.'], 400);
+                return response()->json(['error' => 'Proyecto finalizado'], 400);
             }
 
             $request->validate([
@@ -1587,24 +1587,26 @@ public function destroyMaterial($proyecto, $id)
             ]);
 
             $proyecto = Proyectos::findOrFail($proyecto);
-
-            // Presupuesto: Servicios (servicios + gastos extra)
             $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
-            $assigned = (float)($apartado->monto_servicios ?? 0);
-            $serviciosGastado = (float) DB::table('servicios')
+            $assigned = (float)($apartado->monto_operativos ?? 0); // ← PERSONAL
+
+            // Planilla + gastos_extra
+            $planillaGastado = (float) DB::table('planilla')
                 ->where('id_proyecto', $proyecto->id_proyecto)
-                ->whereNull('deleted_at')
-                ->sum('monto');
+                ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador), 0)')
+                ->value(DB::raw('1')) ?? 0;
+
             $gExtra = DB::table('gastos_extra')
                 ->where('id_proyecto', $proyecto->id_proyecto)
                 ->whereNull('deleted_at')
-                ->selectRaw('COALESCE(SUM(alimentacion_general),0) ali, COALESCE(SUM(hospedaje),0) hos, COALESCE(SUM(pasajes),0) pas')
-                ->first();
-            $gastosExtraGastado = (float)($gExtra->ali ?? 0) + (float)($gExtra->hos ?? 0) + (float)($gExtra->pas ?? 0);
-            $spent = $serviciosGastado + $gastosExtraGastado;
-            $increment = (float)$request->alimentacion_general + (float)$request->hospedaje + (float)$request->pasajes;
+                ->selectRaw('COALESCE(SUM(alimentacion_general + hospedaje + pasajes), 0)')
+                ->value(DB::raw('1')) ?? 0;
+
+            $spent = $planillaGastado + $gExtra;
+            $increment = $request->alimentacion_general + $request->hospedaje + $request->pasajes;
+
             if ($spent + $increment > $assigned + 1e-9) {
-                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Servicios.'], 400);
+                return response()->json(['error' => 'Límite de presupuesto Personal alcanzado.'], 400);
             }
 
             $gasto = GastosExtra::create([
@@ -1612,34 +1614,24 @@ public function destroyMaterial($proyecto, $id)
                 'alimentacion_general' => $request->alimentacion_general,
                 'hospedaje' => $request->hospedaje,
                 'pasajes' => $request->pasajes,
-                'created_at' => now(),
             ]);
 
             return response()->json([
                 'success' => true,
-                'message' => 'Gasto extra agregado correctamente.',
-                'id_gasto' => $gasto->id_gasto,
-                'alimentacion_general' => $gasto->alimentacion_general,
-                'hospedaje' => $gasto->hospedaje,
-                'pasajes' => $gasto->pasajes,
-                'created_at' => $gasto->created_at->toISOString(),
+                'gasto' => $gasto,
             ], 201);
-        } catch (ValidationException $e) {
-            return response()->json(['error' => implode(', ', $e->errors())], 422);
         } catch (\Exception $e) {
-            Log::error('Error al agregar gasto extra: ' . $e->getMessage(), [
-                'request' => $request->all(),
-                'proyecto_id' => $proyecto,
-            ]);
-            return response()->json(['error' => 'Error al agregar el gasto extra: ' . $e->getMessage()], 500);
+            \Log::error('storeGastoExtra: ' . $e->getMessage());
+            return response()->json(['error' => 'Error'], 500);
         }
     }
 
-    public function updateGastoExtra(Request $request, $proyecto, $id){
+    // === UPDATE GASTO EXTRA ===
+    public function updateGastoExtra(Request $request, $proyecto, $id)
+    {
         try {
-            // Verificar si el proyecto está finalizado
             if ($this->isProyectoFinalizado($proyecto)) {
-                return response()->json(['error' => 'El proyecto ya esta finalizado. No se pueden modificar registros.'], 400);
+                return response()->json(['error' => 'Proyecto finalizado'], 400);
             }
 
             $request->validate([
@@ -1648,29 +1640,28 @@ public function destroyMaterial($proyecto, $id)
                 'pasajes' => 'required|numeric|min:0',
             ]);
 
-            $gasto = GastosExtra::where('id_proyecto', $proyecto)
-                ->where('id_gasto', $id)
-                ->firstOrFail();
-
-            // Presupuesto: Servicios (validar delta)
+            $gasto = GastosExtra::where('id_proyecto', $proyecto)->where('id_gasto', $id)->firstOrFail();
             $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto)->first();
-            $assigned = (float)($apartado->monto_servicios ?? 0);
-            $serviciosGastado = (float) DB::table('servicios')
+            $assigned = (float)($apartado->monto_operativos ?? 0); // ← PERSONAL
+
+            $planillaGastado = (float) DB::table('planilla')
                 ->where('id_proyecto', $proyecto)
-                ->whereNull('deleted_at')
-                ->sum('monto');
+                ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador), 0)')
+                ->value(DB::raw('1')) ?? 0;
+
             $gExtra = DB::table('gastos_extra')
                 ->where('id_proyecto', $proyecto)
                 ->whereNull('deleted_at')
-                ->selectRaw('COALESCE(SUM(alimentacion_general),0) ali, COALESCE(SUM(hospedaje),0) hos, COALESCE(SUM(pasajes),0) pas')
-                ->first();
-            $gastosExtraGastado = (float)($gExtra->ali ?? 0) + (float)($gExtra->hos ?? 0) + (float)($gExtra->pas ?? 0);
-            $spent = $serviciosGastado + $gastosExtraGastado;
-            $delta = ((float)$request->alimentacion_general - (float)$gasto->alimentacion_general)
-                  + ((float)$request->hospedaje - (float)$gasto->hospedaje)
-                  + ((float)$request->pasajes - (float)$gasto->pasajes);
+                ->selectRaw('COALESCE(SUM(alimentacion_general + hospedaje + pasajes), 0)')
+                ->value(DB::raw('1')) ?? 0;
+
+            $spent = $planillaGastado + $gExtra;
+            $oldTotal = $gasto->alimentacion_general + $gasto->hospedaje + $gasto->pasajes;
+            $newTotal = $request->alimentacion_general + $request->hospedaje + $request->pasajes;
+            $delta = $newTotal - $oldTotal;
+
             if ($spent + $delta > $assigned + 1e-9) {
-                return response()->json(['error' => 'Se alcanzó el límite del presupuesto de Servicios.'], 400);
+                return response()->json(['error' => 'Límite de presupuesto Personal alcanzado.'], 400);
             }
 
             $gasto->update([
@@ -1681,22 +1672,11 @@ public function destroyMaterial($proyecto, $id)
 
             return response()->json([
                 'success' => true,
-                'message' => 'Gasto extra actualizado correctamente.',
-                'id_gasto' => $gasto->id_gasto,
-                'alimentacion_general' => $gasto->alimentacion_general,
-                'hospedaje' => $gasto->hospedaje,
-                'pasajes' => $gasto->pasajes,
-                'created_at' => $gasto->created_at->toISOString(),
+                'gasto' => $gasto,
             ]);
-        } catch (ValidationException $e) {
-            return response()->json(['error' => implode(', ', $e->errors())], 422);
         } catch (\Exception $e) {
-            Log::error('Error al actualizar gasto extra: ' . $e->getMessage(), [
-                'request' => $request->all(),
-                'proyecto_id' => $proyecto,
-                'gasto_id' => $id,
-            ]);
-            return response()->json(['error' => 'Error al actualizar el gasto extra: ' . $e->getMessage()], 500);
+            \Log::error('updateGastoExtra: ' . $e->getMessage());
+            return response()->json(['error' => 'Error'], 500);
         }
     }
 
@@ -1995,57 +1975,47 @@ public function destroyMaterial($proyecto, $id)
      */
     public function getBudgetSummary(Proyectos $proyecto)
     {
-        try {
-            $apartado = DB::table('montos_apartados')
-                ->where('id_proyecto', $proyecto->id_proyecto)
-                ->first();
+        $apartado = DB::table('montos_apartados')->where('id_proyecto', $proyecto->id_proyecto)->first();
 
-            $materialesGastado = (float) DB::table('materiales')
-                ->where('id_proyecto', $proyecto->id_proyecto)
-                ->whereNull('deleted_at')
-                ->sum('monto_mat');
+        $materialesGastado = (float) DB::table('materiales')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->sum('monto_mat');
 
-            $personalGastado = (float) DB::table('planilla')
-                ->where('id_proyecto', $proyecto->id_proyecto)
-                ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador),0) AS total')
-                ->value('total');
+        $planillaGastado = (float) DB::table('planilla')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador), 0)')
+            ->value(DB::raw('1')) ?? 0;
 
-            $serviciosGastado = (float) DB::table('servicios')
-                ->where('id_proyecto', $proyecto->id_proyecto)
-                ->whereNull('deleted_at')
-                ->sum('monto');
-            $gExtra = DB::table('gastos_extra')
-                ->where('id_proyecto', $proyecto->id_proyecto)
-                ->whereNull('deleted_at')
-                ->selectRaw('COALESCE(SUM(alimentacion_general),0) ali, COALESCE(SUM(hospedaje),0) hos, COALESCE(SUM(pasajes),0) pas')
-                ->first();
-            $serviciosGastado += (float)($gExtra->ali ?? 0) + (float)($gExtra->hos ?? 0) + (float)($gExtra->pas ?? 0);
+        $gExtra = (float) DB::table('gastos_extra')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->selectRaw('COALESCE(SUM(alimentacion_general + hospedaje + pasajes), 0)')
+            ->value(DB::raw('1')) ?? 0;
 
-            $materials = [
+        $personalGastado = $planillaGastado + $gExtra;
+
+        $serviciosGastado = (float) DB::table('servicios')
+            ->where('id_proyecto', $proyecto->id_proyecto)
+            ->whereNull('deleted_at')
+            ->sum('monto');
+
+        return response()->json([
+            'materials' => [
                 'assigned' => (float)($apartado->monto_material ?? 0),
                 'spent' => $materialesGastado,
-            ];
-
-            $personal = [
+                'remaining' => max(0, (float)($apartado->monto_material ?? 0) - $materialesGastado),
+            ],
+            'personal' => [
                 'assigned' => (float)($apartado->monto_operativos ?? 0),
                 'spent' => $personalGastado,
-            ];
-
-            $services = [
+                'remaining' => max(0, (float)($apartado->monto_operativos ?? 0) - $personalGastado),
+            ],
+            'services' => [
                 'assigned' => (float)($apartado->monto_servicios ?? 0),
                 'spent' => $serviciosGastado,
-            ];
-
-            return response()->json([
-                'materials' => $materials,
-                'personal' => $personal,
-                'services' => $services,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('Error en getBudgetSummary: '.$e->getMessage(), [
-                'proyecto_id' => $proyecto->id_proyecto,
-            ]);
-            return response()->json(['error' => 'No se pudo obtener el presupuesto.'], 500);
-        }
+                'remaining' => max(0, (float)($apartado->monto_servicios ?? 0) - $serviciosGastado),
+            ],
+        ]);
     }
 }

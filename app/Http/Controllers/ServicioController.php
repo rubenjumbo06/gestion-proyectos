@@ -21,9 +21,12 @@ class ServicioController extends Controller
             'monto' => 'required|numeric|min:0',
         ]);
 
-        Servicio::create($request->all());
+        $servicio = Servicio::create($request->all());
 
-        return redirect()->back()->with('success', 'Servicio registrado exitosamente.');
+        return response()->json([
+            'success' => true,
+            'servicio' => $servicio,
+        ], 201);
     }
 
     public function update(Request $request, Servicio $servicio)
@@ -35,13 +38,16 @@ class ServicioController extends Controller
 
         $servicio->update($request->all());
 
-        return redirect()->back()->with('success', 'Servicio actualizado exitosamente.');
+        return response()->json([
+            'success' => true,
+            'servicio' => $servicio,
+        ]);
     }
 
     public function destroy(Servicio $servicio)
     {
         $servicio->delete();
 
-        return redirect()->back()->with('success', 'Servicio eliminado exitosamente.');
+        return response()->json(['success' => true]);
     }
 }

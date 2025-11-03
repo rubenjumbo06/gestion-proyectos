@@ -39,7 +39,7 @@
             <div class="box-body">
                 <div class="row">
                     <div class="col-sm-4"><p><strong>Asignado (monto_operativos):</strong> S/<span id="per-assigned">{{ isset($budgetPersonal['assigned']) ? number_format($budgetPersonal['assigned'], 2) : '0.00' }}</span></p></div>
-                    <div class="col-sm-4"><p><strong>Gastado:</strong> S/<span id="per-spent">{{ isset($budgetPersonal['spent']) ? number_format($budgetPersonal['spent'], 2) : '0.00' }}</span></p></div>
+                    <div class="col-sm-4"><p><strong>Gastado(Personal + Extras):</strong> S/<span id="per-spent">{{ isset($budgetPersonal['spent']) ? number_format($budgetPersonal['spent'], 2) : '0.00' }}</span></p></div>
                     <div class="col-sm-4"><p><strong>Restante:</strong> S/<span id="per-remaining">{{ isset($budgetPersonal['remaining']) ? number_format($budgetPersonal['remaining'], 2) : '0.00' }}</span></p></div>
                 </div>
             </div>
@@ -1339,6 +1339,11 @@
             }
         }
 
+        refreshBudgetPersonal();
+    });
+    // === ESCUCHAR ACTUALIZACIONES DESDE OTRAS PESTAÑAS ===
+    window.addEventListener('budget-personal-updated', () => {
+        console.log('[planilla] Evento recibido: presupuesto actualizado desde otra pestaña');
         refreshBudgetPersonal();
     });
 </script>
