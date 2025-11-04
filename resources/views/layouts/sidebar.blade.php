@@ -46,11 +46,13 @@
             </li>
 
             <!-- Exportación General -->
-            <li class="{{ Route::is('exportacion.general') ? 'active' : '' }}">
-                <a href="{{ route('exportacion.general') }}" title="Exportación General">
-                    <i class="fa fa-file-pdf"></i> <span>Exportación General</span>
-                </a>
-            </li>
+            @if(auth()->check() && auth()->user()->puede_descargar)
+                <li class="{{ Route::is('exportacion.general') ? 'active' : '' }}">
+                    <a href="{{ route('exportacion.general') }}">
+                        <i class="fa fa-file-pdf"></i> <span>Exportación General</span>
+                    </a>
+                </li>
+            @endif
 
             <!-- Usuarios Autorizados (solo SuperAdmin) -->
             @if(auth()->check())

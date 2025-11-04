@@ -311,15 +311,21 @@ class ProyectosController extends Controller
             // Las inserciones en 'fechapr', 'montopr' y 'montos_apartados' se manejan en ProyectosObserver@created
 
             return redirect()->route('proyectos.index')->with('success', '¡Proyecto creado con éxito!');
-        } catch (ValidationException $e) {
-            Log::error('Error de validación al crear proyecto: ' . implode(', ', $e->errors()), [
-                'request' => $request->all(),
-            ]);
-            return redirect()->back()->withInput()->with('error', '¡Ups! No se pudo crear el proyecto: ' . implode(', ', $e->errors()));
-        } catch (\Exception $e) {
-            Log::error('Error al crear proyecto: ' . $e->getMessage(), [
-                'request' => $request->all(),
-                'exception' => $e,
+            } catch (ValidationException $e) {
+                $mensajeErrores = collect($e->errors())->flatten()->implode(', ');
+
+                Log::error('Error de validación al crear proyecto: ' . $mensajeErrores, [
+                    'request' => json_encode($request->all()),
+                ]);
+
+                return redirect()->back()->withInput()->with('error', '¡Ups! No se pudo crear el proyecto: ' . $mensajeErrores);
+            }  catch (\Exception $e) {
+                Log::error('Error al crear proyecto: ' . $e->getMessage(), [
+                    'request' => json_encode($request->all()), // JSON seguro
+                    'exception_message' => $e->getMessage(),
+                    'exception_trace' => $e->getTraceAsString(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
             ]);
             return redirect()->back()->withInput()->with('error', '¡Ups! No se pudo crear el proyecto.');
         }

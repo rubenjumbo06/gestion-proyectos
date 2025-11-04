@@ -22,7 +22,8 @@ class Proyectos extends Model
         'descripcion_proyecto',
         'cantidad_trabajadores',
         'sueldo',
-        'fecha_creacion'
+        'fecha_creacion',
+        'user_id'
     ];
     protected $casts = [
         'fecha_creacion' => 'datetime',

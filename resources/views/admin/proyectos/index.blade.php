@@ -93,7 +93,7 @@
                             <th class="px-6 py-3 border">Nombre del Proyecto</th>
                             <th class="px-6 py-3 border">Cliente</th>
                             <th class="px-6 py-3 border">Fecha de Creación</th>
-                            <!-- <th class="px-6 py-3 border">Usuario Creador</th> -->
+                            <th class="px-6 py-3 border">Usuario Creador</th>
                             <th class="px-6 py-3 border">Última Actualización</th>
                         </tr>
                     </thead>
@@ -103,7 +103,12 @@
                                 <td class="px-6 py-3 border"><a href="{{ route('proyectos.show', $proyecto) }}" class="text-blue-600 hover:underline">{{ $proyecto->nombre_proyecto }}</a></td>
                                 <td class="px-6 py-3 border">{{ $proyecto->cliente_proyecto }}</td>
                                 <td class="px-6 py-3 border">{{ $proyecto->fecha_creacion ? $proyecto->fecha_creacion->format('d/m/Y H:i') : 'N/A' }}</td>
-                                <!-- <td class="px-6 py-3 border">{{ $proyecto->user->name ?? 'Desconocido' }}</td> -->
+                                <td class="px-6 py-3 border">
+                                    @if ($proyecto->user && $proyecto->user->img)
+                                        <img src="{{ $proyecto->user->img }}" alt="Foto de {{ $proyecto->user->name }}" class="w-8 h-8 rounded-full inline-block mr-2">
+                                    @endif
+                                    {{ $proyecto->user->name ?? 'Desconocido' }}
+                                </td>
                                 <td class="px-6 py-3 border">{{ $proyecto->updated_at ? $proyecto->updated_at->format('d/m/Y H:i') : 'N/A' }}</td>
                             </tr>
                         @endforeach

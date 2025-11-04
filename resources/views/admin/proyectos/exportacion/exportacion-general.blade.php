@@ -49,9 +49,13 @@
                                 <td class="cliente-proyecto">{{ $proyecto->cliente_proyecto }}</td>
                                 <td class="fecha-creacion">{{ $proyecto->fecha_creacion ? $proyecto->fecha_creacion->format('d/m/Y') : 'N/A' }}</td>
                                 <td class="acciones">
-                                    <a href="{{ route('proyectos.exportPdf', $proyecto) }}" class="btn btn-success">
-                                        <i class="fa fa-file-pdf"></i> Exportar PDF
-                                    </a>
+                                    @if(auth()->check() && auth()->user()->puede_descargar)
+                                        <a href="{{ route('proyectos.exportPdf', $proyecto) }}" class="btn btn-success">
+                                            <i class="fa fa-file-pdf"></i> Exportar PDF
+                                        </a>
+                                    @else
+                                        <span class="text-muted"><i class="fa fa-ban"></i> Sin permiso</span>
+                                    @endif
                                 </td>
                             </tr>
                         @empty

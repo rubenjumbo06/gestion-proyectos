@@ -48,10 +48,14 @@ Route::middleware(['auth'])->group(function () {
     Route::put('/perfiles', [ProfileController::class, 'update'])->name('profile.update');
 
     // Ruta para Exportación General
-    Route::get('/admin/exportacion-general', [ProyectosController::class, 'exportacionGeneral'])->name('exportacion.general');
+    Route::get('/admin/exportacion-general', [ProyectosController::class, 'exportacionGeneral'])
+    ->name('exportacion.general')
+    ->middleware('auth');
 
     // Ruta para exportar PDF de un proyecto
-    Route::get('/admin/proyectos/{proyecto}/export-pdf', [ProyectosController::class, 'exportPdf'])->name('proyectos.exportPdf');
+    Route::get('/proyectos/{proyecto}/export-pdf', [ProyectosController::class, 'exportPdf'])
+    ->name('proyectos.exportPdf')
+    ->middleware('auth');
     
     // Ruta para cambiar de contraseña
     Route::get('/change-password', [LoginController::class, 'showChangePasswordForm'])->name('password.change');
