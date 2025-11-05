@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Lista de Proveedores</title>
+    <title>Lista de Financiadores</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -46,7 +46,7 @@
 <body>
     <img src="{{ public_path('images/BARUC_LOGO.jpeg') }}" alt="Logo" class="logo">
     <div class="watermark">CONFIDENCIAL</div>
-    <h1 style="text-align: center;">Lista de Proveedores</h1>
+    <h1 style="text-align: center;">Lista de Financiadores</h1>
     <table>
         <thead>
             <tr>
@@ -66,7 +66,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4" style="text-align: center; font-style: italic;">No hay proveedores registrados</td>
+                    <td colspan="4" style="text-align: center; font-style: italic;">No hay financiadores registrados</td>
                 </tr>
             @endforelse
         </tbody>

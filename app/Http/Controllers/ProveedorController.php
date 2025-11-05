@@ -20,8 +20,8 @@ class ProveedorController extends Controller
             $user = Auth::user()->load(['permisos', 'allowedUser']);
             return view('admin.proveedores.index', compact('proveedores', 'user'));
         } catch (\Exception $e) {
-            Log::error('Error al listar proveedores: ' . $e->getMessage());
-            return redirect()->route('proveedores.index')->with('error', '¡Ups! Algo falló al cargar los proveedores.');
+            Log::error('Error al listar financiadores: ' . $e->getMessage());
+            return redirect()->route('proveedores.index')->with('error', '¡Ups! Algo falló al cargar los financiador.');
         }
     }
 
@@ -45,7 +45,7 @@ class ProveedorController extends Controller
             'identificacion.digits' => 'El :attribute debe tener :digits dígitos.',
             'identificacion.unique' => 'Este número de documento ya está registrado.',
             'nombre_prov.regex' => 'El nombre solo puede contener letras, espacios y puntos.',
-            'nombre_prov.unique' => 'El nombre del proveedor ya está registrado.',
+            'nombre_prov.unique' => 'El nombre del financiador ya está registrado.',
             'descripcion_prov.regex' => 'La descripción solo puede contener letras, espacios y puntos.',
         ]);
 
@@ -57,10 +57,10 @@ class ProveedorController extends Controller
                 'identificacion'
             ]));
 
-            return redirect()->route('proveedores.index')->with('success', '¡Proveedor creado con éxito!');
+            return redirect()->route('proveedores.index')->with('success', 'Financiador creado con éxito!');
         } catch (\Exception $e) {
-            Log::error('Error al crear proveedor: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', '¡Ups! No se pudo crear el proveedor.');
+            Log::error('Error al crear financiador: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', '¡Ups! No se pudo crear el financiador.');
         }
     }
 
@@ -84,7 +84,7 @@ class ProveedorController extends Controller
             'identificacion.digits' => 'El :attribute debe tener :digits dígitos.',
             'identificacion.unique' => 'Este número de documento ya está registrado.',
             'nombre_prov.regex' => 'El nombre solo puede contener letras, espacios y puntos.',
-            'nombre_prov.unique' => 'El nombre del proveedor ya está registrado.',
+            'nombre_prov.unique' => 'El nombre del financiador ya está registrado.',
             'descripcion_prov.regex' => 'La descripción solo puede contener letras, espacios y puntos.',
         ]);
 
@@ -96,10 +96,10 @@ class ProveedorController extends Controller
                 'identificacion'
             ]));
 
-            return redirect()->route('proveedores.index')->with('success', '¡Proveedor actualizado con éxito!');
+            return redirect()->route('proveedores.index')->with('success', 'Financiador actualizado con éxito!');
         } catch (\Exception $e) {
-            Log::error('Error al actualizar proveedor: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', '¡Ups! No se pudo actualizar el proveedor.');
+            Log::error('Error al actualizar financiador: ' . $e->getMessage());
+            return redirect()->back()->withInput()->with('error', '¡Ups! No se pudo actualizar el financiador.');
         }
     }
 
@@ -112,17 +112,24 @@ class ProveedorController extends Controller
     public function destroy(Proveedor $proveedor)
     {
         try {
+            // Verificar si tiene materiales asociados
+            if ($proveedor->materiales()->exists()) {
+                return redirect()->route('proveedores.index')
+                    ->with('error', 'No se puede eliminar este financiador porque tiene materiales asociados a proyectos.');
+            }
+
             $proveedor->delete();
-            return redirect()->route('proveedores.index')->with('success', '¡Proveedor eliminado con éxito!');
+
+            return redirect()->route('proveedores.index')->with('success', 'Financiador eliminado con éxito!');
         } catch (\Exception $e) {
-            Log::error('Error al eliminar proveedor: ' . $e->getMessage());
-            return redirect()->route('proveedores.index')->with('error', '¡Ups! No se pudo eliminar el proveedor.');
+            \Log::error('Error al eliminar financiador: ' . $e->getMessage());
+            return redirect()->route('proveedores.index')->with('error', '¡Ups! No se pudo eliminar el financiador.');
         }
     }
 
     public function exportExcel()
     {
-        return Excel::download(new ProveedoresExport, 'proveedores.xlsx');
+        return Excel::download(new ProveedoresExport, 'financiadores.xlsx');
     }
 
     public function exportPdf()
@@ -130,6 +137,6 @@ class ProveedorController extends Controller
         $proveedores = Proveedor::all();
         $pdf = Pdf::loadView('admin.proveedores.proveedores_pdf', compact('proveedores'))
                 ->setPaper('a4', 'landscape');
-        return $pdf->download('proveedores.pdf');
+        return $pdf->download('financiadores.pdf');
     }
 }

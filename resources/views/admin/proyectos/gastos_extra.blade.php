@@ -73,7 +73,7 @@
                                     </button>
                                 @endif
                                 @if(Auth::check() && Auth::user()->puede_eliminar)
-                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2x" onclick="GastosExtras.remove({{ $gasto->id_gasto }})">
+                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl" onclick="GastosExtras.remove({{ $gasto->id_gasto }})">
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 @endif
@@ -125,7 +125,7 @@
                             <td>{{ $servicio->created_at->format('d/m/Y H:i') }}</td>
                             <td class="action-buttons">
                                 @if(Auth::check() && Auth::user()->puede_editar)
-                                    <button type="button" class="open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl"
+                                    <button type="button" class=" btn open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl"
                                             data-servicio-id="{{ $servicio->id_servicio }}"
                                             data-descripcion="{{ $servicio->descripcion_serv }}"
                                             data-monto="{{ $servicio->monto }}">
@@ -133,7 +133,7 @@
                                     </button>
                                 @endif
                                 @if(Auth::check() && Auth::user()->puede_eliminar)
-                                    <button type="button" class="text-red-500 hover:text-red-600 text-2xl delete-servicio"
+                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl delete-servicio"
                                             data-id="{{ $servicio->id_servicio }}">
                                         <i class="fas fa-trash"></i>
                                     </button>

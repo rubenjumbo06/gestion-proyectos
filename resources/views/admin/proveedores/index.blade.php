@@ -1,24 +1,24 @@
 @extends('layouts.app')
-@section('title', 'Lista de Proveedores')
+@section('title', 'Lista de Financiadores')
 @section('content')
 <section class="content-header">
-    <h1>Proveedores <small>Controla la información de los proveedores</small></h1>
+    <h1>Financiadores <small>Controla la información de los financiadores</small></h1>
     <ol class="breadcrumb">
         <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-        <li class="active">Proveedores</li>
+        <li class="active">Financiadores</li>
     </ol>
 </section>
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border">
-            <h3 class="box-title">Lista de Proveedores</h3>
+            <h3 class="box-title">Lista de Financiadores</h3>
             <div class="flex justify-end space-x-2">
                 @if(Auth::check() && Auth::user()->puede_descargar)
                     <a href="{{ route('proveedores.export.pdf') }}" class="btn btn-danger">Exportar a PDF</a>
                     <a href="{{ route('proveedores.export.excel') }}" class="btn btn-success">Exportar a Excel</a>
                 @endif
                 @if(Auth::check() && Auth::user()->puede_agregar)
-                    <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#addProveedorModal">Agregar Proveedor</a>
+                    <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#addProveedorModal">Agregar Financiador</a>
                 @endif
             </div>
         </div>
@@ -53,7 +53,7 @@
                         <form action="{{ route('proveedores.store') }}" method="POST" id="addProveedorForm">
                             @csrf
                             <div class="modal-header bg-primary">
-                                <h4 class="modal-title text-white" id="addProveedorModalLabel">Añadir Nuevo Proveedor</h4>
+                                <h4 class="modal-title text-white" id="addProveedorModalLabel">Añadir Nuevo Financiador</h4>
                             </div>
                             <div class="modal-body">
 
@@ -76,7 +76,7 @@
 
                                 <!-- Nombre -->
                                 <div class="form-group">
-                                    <label for="nombre_prov" class="font-semibold">Nombre del Proveedor</label>
+                                    <label for="nombre_prov" class="font-semibold">Nombre del Financiador</label>
                                     <input type="text" name="nombre_prov" id="nombre_prov" class="form-control letter-dot-only" 
                                            value="{{ old('nombre_prov') }}" required pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s.]+" 
                                            title="Solo letras, espacios y puntos" placeholder="Ingresa el nombre del proveedor">
@@ -128,7 +128,7 @@
                                     <a href="#" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#editProveedorModal{{ $proveedor->id_proveedor }}"><i class="fa fa-edit"></i></a>
                                 @endif
                                 @if(Auth::check() && Auth::user()->puede_eliminar)
-                                    <form action="{{ route('proveedores.destroy', $proveedor) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este proveedor?');" style="display:inline;">
+                                    <form action="{{ route('proveedores.destroy', $proveedor) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este financiador?');" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-danger btn-xs"><i class="fa fa-trash"></i></button>
@@ -142,7 +142,7 @@
                             <div class="modal-dialog" role="document">
                                 <div class="modal-content custom-modal">
                                     <div class="modal-header bg-primary">
-                                        <h4 class="modal-title text-white">Detalles del Proveedor</h4>
+                                        <h4 class="modal-title text-white">Detalles del Financiador</h4>
                                     </div>
                                     <div class="modal-body">
                                         <dl>
@@ -175,7 +175,7 @@
                                         @csrf
                                         @method('PUT')
                                         <div class="modal-header bg-primary">
-                                            <h4 class="modal-title text-white">Editar Proveedor</h4>
+                                            <h4 class="modal-title text-white">Editar Financiador</h4>
                                         </div>
                                         <div class="modal-body">
 
@@ -199,7 +199,7 @@
 
                                             <!-- Nombre -->
                                             <div class="form-group">
-                                                <label for="nombre_prov_{{ $proveedor->id_proveedor }}" class="font-semibold">Nombre del Proveedor</label>
+                                                <label for="nombre_prov_{{ $proveedor->id_proveedor }}" class="font-semibold">Nombre del Financiador</label>
                                                 <input type="text" name="nombre_prov" id="nombre_prov_{{ $proveedor->id_proveedor }}" 
                                                        class="form-control letter-dot-only" value="{{ old('nombre_prov', $proveedor->nombre_prov) }}" 
                                                        required pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\s.]+" 
@@ -227,7 +227,7 @@
                         </div>
                     @empty
                         <tr>
-                            <td colspan="5" class="text-center">No hay proveedores registrados.</td>
+                            <td colspan="5" class="text-center">No hay Financiadores registrados.</td>
                         </tr>
                     @endforelse
                 </tbody>

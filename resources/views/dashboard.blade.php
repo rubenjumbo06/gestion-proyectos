@@ -302,6 +302,19 @@
         });
     }
 
+    // Cierre automático de sesión al cerrar pestaña o navegador
+    window.addEventListener('beforeunload', function() {
+        fetch('{{ route('logout') }}', {
+            method: 'POST',
+            keepalive: true, // Permite enviar incluso al cerrar la pestaña
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}' // CSRF requerido por Laravel
+            },
+            body: new URLSearchParams({}) // Body vacío para POST simple
+        });
+    });
+
     // Iniciar dropdown y cargar ECharts
     initDropdown();
     loadECharts(initCharts);

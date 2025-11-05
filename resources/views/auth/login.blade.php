@@ -92,14 +92,18 @@
     </div>
 
     <script>
-        if (window.history.replaceState) {
-            window.history.replaceState(null, null, window.location.href);
+    // Reemplaza el estado de la historia para evitar reenvíos de formulario
+    if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
+    }
+
+    // Detecta navegación atrás/adelante y recarga para consultar al servidor
+    document.addEventListener('DOMContentLoaded', function() {
+        const navEntries = performance.getEntriesByType('navigation');
+        if (navEntries.length > 0 && navEntries[0].type === 'back_forward') {
+            window.location.reload(); // Recarga para que el servidor verifique la sesión
         }
-        document.addEventListener('DOMContentLoaded', function() {
-            if (window.performance && window.performance.navigation.type === 2) {
-                window.location.href = '{{ route('login') }}';
-            }
-        });
-    </script>
+    });
+</script>
 </body>
 </html>

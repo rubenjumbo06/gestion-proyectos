@@ -169,9 +169,9 @@
     </div>
 
     <div class="section">
-        <h2>Proveedores</h2>
+        <h2>Financiadores</h2>
         <table>
-            <thead><tr><th>Proveedor</th><th>Total Monto (S/)</th></tr></thead>
+            <thead><tr><th>Financiador</th><th>Total Monto (S/)</th></tr></thead>
             <tbody>
                 @foreach ($proveedores as $prov)
                     <tr><td>{{ $prov['nombre'] }}</td><td>{{ number_format($prov['total_monto'], 2) }}</td></tr>
@@ -184,7 +184,7 @@
     <div class="section">
         <h2>Materiales</h2>
         <table>
-            <thead><tr><th>Descripción</th><th>Proveedor</th><th>Monto</th><th>Fecha</th></tr></thead>
+            <thead><tr><th>Descripción</th><th>Financiador</th><th>Monto</th><th>Fecha</th></tr></thead>
             <tbody>
                 @foreach ($proyecto->materiales as $mat)
                     <tr><td>{{ $mat->descripcion_mat }}</td><td>{{ $mat->proveedor->nombre_prov }}</td><td>{{ number_format($mat->monto_mat, 2) }}</td><td>{{ $mat->fecha_mat->format('d/m/Y') }}</td></tr>
@@ -240,20 +240,68 @@
             </tbody>
         </table>
     </div>
+
     <div class="section">
-        <h2>Egresos</h2>
+        <h2>Servicios</h2>
         <table>
-            <thead><tr><th>Categoría</th><th>Monto</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>Descripción</th>
+                    <th>Monto</th>
+                    <th>Fecha</th>
+                </tr>
+            </thead>
             <tbody>
-                <tr><td>Materiales</td><td>{{ number_format($proyecto->egresos->materiales ?? 0, 2) }}</td></tr>
-                <tr><td>Planilla</td><td>{{ number_format($proyecto->egresos->planilla ?? 0, 2) }}</td></tr>
-                <tr><td>SCR</td><td>{{ number_format($proyecto->egresos->scr ?? 0, 2) }}</td></tr>
-                <tr><td>Gastos Administrativos</td><td>{{ number_format($proyecto->egresos->gastos_administrativos ?? 0, 2) }}</td></tr>
-                <tr><td>Gastos Extra</td><td>{{ number_format($proyecto->egresos->gastos_extra ?? 0, 2) }}</td></tr>
-                <tr><td><strong>Total</strong></td><td><strong>S/ {{ number_format(($proyecto->egresos->materiales ?? 0) + ($proyecto->egresos->planilla ?? 0) + ($proyecto->egresos->scr ?? 0) + ($proyecto->egresos->gastos_administrativos ?? 0) + ($proyecto->egresos->gastos_extra ?? 0), 2) }}</strong></td></tr>
+                @forelse ($proyecto->servicios as $serv)
+                    <tr>
+                        <td>{{ $serv->descripcion_serv }}</td>
+                        <td>S/ {{ number_format($serv->monto, 2) }}</td>
+                        <td>{{ $serv->created_at->format('d/m/Y') }}</td>
+                    </tr>
+                @empty
+                    <tr>
+                        <td colspan="3" style="font-style: italic; color: #666;">No hay servicios registrados</td>
+                    </tr>
+                @endforelse
+                <tr>
+                    <td><strong>Total</strong></td>
+                    <td><strong>S/ {{ number_format($proyecto->servicios->sum('monto'), 2) }}</strong></td>
+                    <td></td>
+                </tr>
             </tbody>
         </table>
     </div>
+
+    @php
+    // Cálculos reales (siempre correctos)
+    $materiales = $proyecto->materiales->sum('monto_mat');
+    $planilla = $proyecto->planilla->sum('pago');
+    $servicios = $proyecto->servicios->sum('monto');
+    $gastos_extra = $proyecto->gastosExtra->sum(fn($g) => $g->alimentacion_general + $g->hospedaje + $g->pasajes);
+    $scr = $proyecto->egresos->scr ?? 0;
+    $gastos_admin = $proyecto->egresos->gastos_administrativos ?? 0;
+
+    $total_egresos = $materiales + $planilla + $servicios + $gastos_extra + $scr + $gastos_admin;
+    $monto_inicial = $proyecto->montopr->monto_inicial ?? 0;
+    $utilidad = max(0, $monto_inicial - $total_egresos);
+@endphp
+
+<!-- EGRESOS -->
+<div class="section">
+    <h2>Egresos</h2>
+    <table>
+        <thead><tr><th>Categoría</th><th>Monto</th></tr></thead>
+        <tbody>
+            <tr><td>Materiales</td><td>S/ {{ number_format($materiales, 2) }}</td></tr>
+            <tr><td>Planilla</td><td>S/ {{ number_format($planilla, 2) }}</td></tr>
+            <tr><td>Servicios</td><td>S/ {{ number_format($servicios, 2) }}</td></tr>
+            <tr><td>SCR</td><td>S/ {{ number_format($scr, 2) }}</td></tr>
+            <tr><td>Gastos Administrativos</td><td>S/ {{ number_format($gastos_admin, 2) }}</td></tr>
+            <tr><td>Gastos Extra</td><td>S/ {{ number_format($gastos_extra, 2) }}</td></tr>
+            <tr><td><strong>Total</strong></td><td><strong>S/ {{ number_format($total_egresos, 2) }}</strong></td></tr>
+        </tbody>
+    </table>
+</div>
 
     <div class="section">
         <h2>Actividades</h2>
@@ -281,19 +329,21 @@
         </div>
     </div>
 
-    <div class="section">
-        <h2>Resumen de Utilidad</h2>
-        <div class="info-general">
-            <p><strong>Monto Inicial:</strong> S/ {{ number_format($proyecto->montopr->monto_inicial ?? 0, 2) }}</p>
-            <p><strong>Total Gastado:</strong></p>
-            <p>- Materiales: S/ {{ number_format($proyecto->egresos->materiales ?? 0, 2) }}</p>
-            <p>- Planilla: S/ {{ number_format($proyecto->egresos->planilla ?? 0, 2) }}</p>
-            <p>- SCR: S/ {{ number_format($proyecto->egresos->scr ?? 0, 2) }}</p>
-            <p>- Gastos Administrativos: S/ {{ number_format($proyecto->egresos->gastos_administrativos ?? 0, 2) }}</p>
-            <p>- Gastos Extra: S/ {{ number_format($proyecto->egresos->gastos_extra ?? 0, 2) }}</p>
-            <p><strong>Total Gastado:</strong> S/ {{ number_format(($proyecto->egresos->materiales ?? 0) + ($proyecto->egresos->planilla ?? 0) + ($proyecto->egresos->scr ?? 0) + ($proyecto->egresos->gastos_administrativos ?? 0) + ($proyecto->egresos->gastos_extra ?? 0), 2) }}</p>
-            <p><strong>Monto Restante:</strong> S/ {{ number_format(max(0, ($proyecto->montopr->monto_inicial ?? 0) - (($proyecto->egresos->materiales ?? 0) + ($proyecto->egresos->planilla ?? 0) + ($proyecto->egresos->scr ?? 0) + ($proyecto->egresos->gastos_administrativos ?? 0) + ($proyecto->egresos->gastos_extra ?? 0))), 2) }}</p>
-        </div>
+    <!-- RESUMEN DE UTILIDAD -->
+<div class="section">
+    <h2>Resumen de Utilidad</h2>
+    <div class="info-general">
+        <p><strong>Monto Inicial:</strong> S/ {{ number_format($monto_inicial, 2) }}</p>
+        <p><strong>Total Gastado:</strong></p>
+        <p>- Materiales: S/ {{ number_format($materiales, 2) }}</p>
+        <p>- Planilla: S/ {{ number_format($planilla, 2) }}</p>
+        <p>- Servicios: S/ {{ number_format($servicios, 2) }}</p>
+        <p>- SCR: S/ {{ number_format($scr, 2) }}</p>
+        <p>- Gastos Administrativos: S/ {{ number_format($gastos_admin, 2) }}</p>
+        <p>- Gastos Extra: S/ {{ number_format($gastos_extra, 2) }}</p>
+        <p><strong>Total Gastado:</strong> S/ {{ number_format($total_egresos, 2) }}</p>
+        <p><strong>Monto Restante:</strong> S/ {{ number_format($utilidad, 2) }}</p>
     </div>
+</div>
 </body>
 </html>

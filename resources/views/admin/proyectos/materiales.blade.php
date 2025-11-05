@@ -43,7 +43,7 @@
                     <thead>
                         <tr>
                             <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Descripción</th>
-                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Proveedor</th>
+                            <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Financiador</th>
                             <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Monto</th>
                             <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Fecha Creación</th>
                             <th class="px-6 py-4 text-left font-semibold text-gray-700 text-xl">Fecha Actualización</th>
@@ -99,7 +99,7 @@
                         <div class="form-group">
                             <label for="id_proveedor" class="font-semibold text-left text-black">Comprado por:</label>
                             <select id="id_proveedor" name="id_proveedor" class="form-control" required>
-                                <option value="">Seleccionar proveedor</option>
+                                <option value="">Seleccionar financiador</option>
                                 @foreach(\App\Models\Proveedor::all() as $proveedor)
                                     <option value="{{ $proveedor->id_proveedor }}">{{ $proveedor->nombre_prov }}</option>
                                 @endforeach
@@ -141,7 +141,7 @@
                         <div class="form-group">
                             <label for="edit_id_proveedor" class="font-semibold text-left text-black">Proveedor</label>
                             <select id="edit_id_proveedor" name="id_proveedor" class="form-control" required>
-                                <option value="">Seleccionar proveedor</option>
+                                <option value="">Seleccionar Financiador</option>
                                 @foreach(\App\Models\Proveedor::all() as $proveedor)
                                     <option value="{{ $proveedor->id_proveedor }}">{{ $proveedor->nombre_prov }}</option>
                                 @endforeach

@@ -531,7 +531,7 @@
 
         // Construye el gráfico de Balance General (servicios, egresos, ganancia_neta)
         function buildBalanceOption(payload) {
-            const labels = ['Servicios', 'Egresos', 'Ganancia Neta'];
+            const labels = ['Monto inicial', 'Egresos', 'Ganancia Neta'];
             const data   = [
                 Number(safe(payload?.total_servicios, 0)),
                 Number(safe(payload?.egresos, 0)),
