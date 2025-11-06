@@ -16,12 +16,7 @@ class LoginController extends Controller
         if (auth()->check()) {
             return redirect()->route('dashboard');
         }
-
-        // Retorna la vista con cabeceras de no-caché
-        return response()->view('auth.login')
-            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-            ->header('Pragma', 'no-cache')
-            ->header('Expires', '0');
+        return view('auth.login');
     }
 
     public function login(Request $request)

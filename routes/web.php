@@ -43,6 +43,7 @@ Route::get('/dashboard/{id}', [ProyectosController::class, 'dashboard'])
 
 // Rutas protegidas (solo para usuarios autenticados)
 Route::middleware(['auth'])->group(function () {
+    app('router')->pushMiddlewareToGroup('web', \App\Http\Middleware\NoCache::class);
     // Ruta para el perfil del usuario
     Route::get('/perfiles', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/perfiles', [ProfileController::class, 'update'])->name('profile.update');
