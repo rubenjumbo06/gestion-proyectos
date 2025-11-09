@@ -11,26 +11,43 @@ class EgresosObserver
 {
     public function saved(Egresos $egresos)
     {
-        // Calcular totales reales y actualizar por DB para evitar recursión de eventos
-        $planillaSumRow = Planilla::where('id_proyecto', $egresos->id_proyecto)
-            ->whereNull('deleted_at')
-            ->selectRaw('COALESCE(SUM(pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador),0) AS total')
-            ->first();
-        $planillaTotal = (float) ($planillaSumRow->total ?? 0);
+        DB::transaction(function () use ($egresos) {
+            $proyectoId = $egresos->id_proyecto;
 
-        $gastos = GastosExtra::where('id_proyecto', $egresos->id_proyecto)
-            ->whereNull('deleted_at')
-            ->selectRaw('COALESCE(SUM(alimentacion_general),0) as alim, COALESCE(SUM(hospedaje),0) as hosp, COALESCE(SUM(pasajes),0) as pas')
-            ->first();
+            // 1. Planilla
+            $planillaTotal = Planilla::where('id_proyecto', $proyectoId)
+                ->whereNull('deleted_at')
+                ->sum(DB::raw('pago + alimentacion_trabajador + hospedaje_trabajador + pasajes_trabajador'));
 
-        $gastosExtraTotal = (float) ($gastos->alim ?? 0) + (float) ($gastos->hosp ?? 0) + (float) ($gastos->pas ?? 0);
+            // 2. Gastos Extra
+            $gastosExtra = GastosExtra::where('id_proyecto', $proyectoId)
+                ->whereNull('deleted_at')
+                ->selectRaw('COALESCE(SUM(alimentacion_general + hospedaje + pasajes), 0) as total')
+                ->first();
+            $gastosExtraTotal = (float) ($gastosExtra->total ?? 0);
 
-        DB::table('egresos')
-            ->where('id_egreso', $egresos->id_egreso)
-            ->update([
+            // 3. Materiales (suma real)
+            $materialesTotal = Materiales::where('id_proyecto', $proyectoId)
+                ->whereNull('deleted_at')
+                ->sum('monto_mat');
+
+            // 4. SCR + Gastos Administrativos + Servicios (del último registro o 0)
+            $scr = (float) ($egresos->scr ?? 0);
+            $gastosAdmin = (float) ($egresos->gastos_administrativos ?? 0);
+            $servicios = (float) ($egresos->servicios ?? 0);
+
+            // 5. Actualizar egresos
+            $egresos->update([
+                'materiales' => $materialesTotal,
                 'planilla' => $planillaTotal,
                 'gastos_extra' => $gastosExtraTotal,
-                'updated_at' => now(),
+                'scr' => $scr,
+                'gastos_administrativos' => $gastosAdmin,
+                'servicios' => $servicios,
             ]);
+
+            // Opcional: forzar recálculo del virtual
+            $egresos->refresh();
+        });
     }
 }

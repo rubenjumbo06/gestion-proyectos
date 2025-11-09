@@ -1019,31 +1019,29 @@ class ProyectosController extends Controller
         }
     }
 
-    public function getMaterialesData(Proyectos $proyecto){
+    public function getMaterialesData(Proyectos $proyecto)
+    {
         try {
-            Log::info('Obteniendo datos de materiales', [
-                'proyecto_id' => $proyecto->id_proyecto,
-                'memory' => memory_get_usage() / 1024 / 1024 . ' MB'
-            ]);
-
             $materiales = Materiales::where('id_proyecto', $proyecto->id_proyecto)
                 ->whereNull('deleted_at')
-                ->select('descripcion_mat', \DB::raw('COUNT(*) as total'), \DB::raw('SUM(monto_mat) as monto_total'))
+                ->select(
+                    'descripcion_mat',
+                    \DB::raw('SUM(monto_mat) as monto_total'),
+                    \DB::raw('COUNT(*) as cantidad')
+                )
                 ->groupBy('descripcion_mat')
+                ->orderByDesc('monto_total')
                 ->get();
 
             return response()->json([
                 'labels' => $materiales->pluck('descripcion_mat')->toArray(),
-                'data' => $materiales->pluck('total')->toArray(),
-                'montos' => $materiales->pluck('monto_total')->toArray()
+                'montos' => $materiales->pluck('monto_total')->toArray(),
+                'cantidad' => $materiales->pluck('cantidad')->toArray(), // opcional
             ]);
+
         } catch (\Exception $e) {
-            Log::error('Error al obtener datos de materiales: ' . $e->getMessage(), [
-                'proyecto_id' => $proyecto->id_proyecto,
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-            return response()->json(['error' => 'Error al cargar datos de materiales'], 500);
+            Log::error('Error materiales: ' . $e->getMessage());
+            return response()->json(['error' => 'Error materiales'], 500);
         }
     }
 
@@ -1399,37 +1397,32 @@ class ProyectosController extends Controller
     public function getBalanceData(Proyectos $proyecto)
     {
         try {
-            Log::info('Obteniendo dato de balance_general', [
-                'proyecto_id' => $proyecto->id_proyecto,
-                'memory' => memory_get_usage() / 1024 / 1024 . ' MB'
-            ]);
+            Log::info('Calculando balance general en tiempo real', ['proyecto_id' => $proyecto->id_proyecto]);
 
-            $balance = BalanceGeneral::where('id_proyecto', $proyecto->id_proyecto)
+            // 1. Monto inicial del proyecto
+            $montoInicial = (float) ($proyecto->montopr->monto_inicial ?? 0);
+
+            // 2. Últimos egresos (el más reciente tiene todos los totales calculados)
+            $ultimoEgreso = Egresos::where('id_proyecto', $proyecto->id_proyecto)
                 ->whereNull('deleted_at')
-                ->orderByDesc('id_balance')
+                ->orderByDesc('id_egreso')
                 ->first();
 
-            if (!$balance) {
-                // Respuesta consistente para la vista (valores 0 si no existe registro)
-                return response()->json([
-                    'total_servicios' => 0,
-                    'egresos' => 0,
-                    'ganancia_neta' => 0
-                ]);
-            }
+            $totalEgresos = $ultimoEgreso ? (float) $ultimoEgreso->total_egresos : 0;
+            $gananciaNeta = $montoInicial - $totalEgresos;
 
             return response()->json([
-                'total_servicios' => (float) $balance->total_servicios,
-                'egresos' => (float) $balance->egresos,
-                'ganancia_neta' => (float) $balance->ganancia_neta,
+                'monto_inicial' => $montoInicial,
+                'total_egresos' => $totalEgresos,
+                'ganancia_neta' => $gananciaNeta,
             ]);
+
         } catch (\Exception $e) {
-            Log::error('Error al obtener balance_general: ' . $e->getMessage(), [
+            Log::error('Error calculando balance: ' . $e->getMessage(), [
                 'proyecto_id' => $proyecto->id_proyecto,
-                'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return response()->json(['error' => 'Error al cargar datos de balance general'], 500);
+            return response()->json(['error' => 'Error en balance'], 500);
         }
     }
 
