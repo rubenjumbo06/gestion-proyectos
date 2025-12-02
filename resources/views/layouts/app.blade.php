@@ -12,8 +12,11 @@
     <link rel="stylesheet" href="{{ asset('adminlte/dist/css/AdminLTE.min.css') }}">
     <link rel="stylesheet" href="{{ asset('adminlte/dist/css/skins/skin-blue.min.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-    <link rel="stylesheet" href="{{ asset('css/custom.css') }}"> 
+    <link rel="stylesheet" href="{{ asset('css/custom.css?v=2') }}"> <!-- Agrega ?v=2 para romper caché -->
     <link rel="stylesheet" href="{{ asset('css/modals.css') }}"> 
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 </head>
 <body class="hold-transition skin-blue sidebar-mini">
 <div class="wrapper">
@@ -34,6 +37,9 @@
 <script src="{{ asset('adminlte/bower_components/bootstrap/dist/js/bootstrap.min.js') }}"></script>
 <script src="{{ asset('adminlte/dist/js/adminlte.min.js') }}"></script>
 <script src="{{ asset('adminlte/plugins/Chart.js/Chart.js') }}"></script>
+<script>
+window.addEventListener('pageshow', e => e.persisted && location.reload());
+</script>
 @stack('scripts')
 </body>
 </html>

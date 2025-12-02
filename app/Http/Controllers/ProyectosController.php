@@ -160,16 +160,12 @@ class ProyectosController extends Controller
     }
 
    public function index()
-    {
-        try {
-            Log::info('Iniciando index de proyectos', [
-                'memory' => memory_get_usage() / 1024 / 1024 . ' MB',
-                'user_id' => auth()->id() ?? 'No autenticado'
-            ]);
+{
+    try {
+        Log::info('Iniciando index de proyectos');
 
-            $proyectos = Proyectos::with(['user' => function ($query) {
-                $query->select('id', 'name');
-            }])
+        // Ordenamos SIEMPRE por fecha_creacion DESC, y si es null por created_at
+        $proyectos = Proyectos::with(['user' => fn($q) => $q->select('id', 'name', 'img')])
             ->select([
                 'proyectos.id_proyecto',
                 'proyectos.nombre_proyecto',
@@ -184,11 +180,12 @@ class ProyectosController extends Controller
             ->leftJoin('montopr', 'proyectos.id_proyecto', '=', 'montopr.proyecto_id')
             ->leftJoin('fechapr', 'proyectos.id_proyecto', '=', 'fechapr.proyecto_id')
             ->selectRaw('montopr.monto_inicial as monto, fechapr.fecha_inicio, fechapr.fecha_fin_aprox')
+            ->orderByDesc('proyectos.fecha_creacion')
+            ->orderByDesc('proyectos.created_at') // respaldo
             ->simplePaginate(50);
 
-            $allProyectos = Proyectos::with(['user' => function ($query) {
-                $query->select('id', 'name');
-            }])
+        // Para la cuadrícula de los 4 más recientes
+        $allProyectos = Proyectos::with(['user' => fn($q) => $q->select('id', 'name', 'img')])
             ->select([
                 'id_proyecto',
                 'nombre_proyecto',
@@ -196,32 +193,23 @@ class ProyectosController extends Controller
                 'fecha_creacion',
                 'user_id',
             ])
+            ->orderByDesc('fecha_creacion')
+            ->orderByDesc('created_at')
             ->get();
 
-            // === AÑADE ESTO: CARGAR montos_apartados EN UNA SOLA CONSULTA ===
-            $montosApartados = DB::table('montos_apartados')
-                ->whereIn('id_proyecto', $allProyectos->pluck('id_proyecto'))
-                ->get()
-                ->keyBy('id_proyecto');
-            // === FIN DE LA LÍNEA NUEVA ===
+        // Montos apartados (una sola consulta)
+        $montosApartados = DB::table('montos_apartados')
+            ->whereIn('id_proyecto', $allProyectos->pluck('id_proyecto'))
+            ->get()
+            ->keyBy('id_proyecto');
 
-            Log::info('Proyectos cargados', [
-                'count' => count($proyectos->items()),
-                'total_count' => $allProyectos->count(),
-                'memory' => memory_get_usage() / 1024 / 1024 . ' MB'
-            ]);
+        return view('admin.proyectos.index', compact('proyectos', 'allProyectos', 'montosApartados'));
 
-            return view('admin.proyectos.index', compact('proyectos', 'allProyectos', 'montosApartados'));
-
-        } catch (\Exception $e) {
-            Log::error('Error al listar los proyectos: ' . $e->getMessage(), [
-                'exception' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-                'user_id' => auth()->id() ?? 'No autenticado'
-            ]);
-            return response('Error al cargar proyectos: ' . $e->getMessage(), 500);
-        }
+    } catch (\Exception $e) {
+        Log::error('Error al listar proyectos: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        return response('Error interno del servidor', 500);
     }
+}
 
     public function create()
     {
@@ -283,7 +271,7 @@ class ProyectosController extends Controller
     {
         try {
             $request->validate([
-                'nombre_proyecto' => 'required|string|max:100',
+                'nombre_proyecto' => 'required|string|max:100|unique:proyectos,nombre_proyecto,NULL,id_proyecto,deleted_at,NULL',
                 'cliente_proyecto' => 'required|string|max:100',
                 'descripcion_proyecto' => 'nullable|string',
                 'cantidad_trabajadores' => 'required|integer|min:0',
@@ -292,7 +280,10 @@ class ProyectosController extends Controller
                 'monto_servicios' => 'required|numeric|min:0',
                 'fecha_inicio' => 'required|date',
                 'fecha_fin_aprox' => 'nullable|date|after_or_equal:fecha_inicio',
-            ]);
+            ],
+    [
+        'nombre_proyecto.unique' => 'Ya existe un proyecto con este nombre.',
+    ]);
 
             $proyecto = Proyectos::create(array_merge(
                 $request->only([
@@ -522,7 +513,18 @@ class ProyectosController extends Controller
     {
         try {
             $request->validate([
-                'nombre_proyecto' => 'required|string|max:100',
+                'nombre_proyecto' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('proyectos', 'nombre_proyecto')
+                    ->ignore($proyecto->id_proyecto, 'id_proyecto')
+                    ->whereNull('deleted_at')
+                    ->where(function ($query) use ($request) {
+                        // Comparación insensible a mayúsculas y espacios
+                        return $query->whereRaw('TRIM(LOWER(nombre_proyecto)) = ?', [trim(strtolower($request->nombre_proyecto))]);
+                    })
+            ],
                 'cliente_proyecto' => 'required|string|max:100',
                 'descripcion_proyecto' => 'nullable|string',
                 'cantidad_trabajadores' => 'required|integer|min:0',
@@ -530,10 +532,12 @@ class ProyectosController extends Controller
                 'monto_operativos' => 'required|numeric|min:0',
                 'monto_servicios' => 'required|numeric|min:0',
                 'fecha_inicio' => 'required|date',
-                'fecha_fin_aprox' => 'nullable|date|after_or_equal:fecha_inicio',
-            ]);
+                'fecha_fin_aprox'      => 'nullable|date|after_or_equal:fecha_inicio',
+        ], [
+            'nombre_proyecto.unique' => 'Ya existe otro proyecto con este nombre.',
+        ]);
 
-            DB::beginTransaction();
+        DB::beginTransaction();
 
             // 1. Actualizar datos básicos del proyecto
             $proyecto->update([

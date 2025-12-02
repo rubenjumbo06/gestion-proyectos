@@ -11,12 +11,32 @@ use Illuminate\Support\Facades\Hash;
 
 class LoginController extends Controller
 {
-    public function showLoginForm()
+    public function showLoginForm(Request $request)
     {
         if (auth()->check()) {
-            return redirect()->route('dashboard');
+            // Logout completo si sesión activa
+            \Log::info('Sesión activa detectada en showLoginForm, iniciando logout automático', ['user_id' => auth()->id() ?? 'none']);
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+            \Session::forget('oauth_token'); // Para Google
+            \Session::save();
+            \Log::info('Logout automático completado en showLoginForm');
+
+            // Redirige a sí mismo para forzar un nuevo load fresco con token CSRF nuevo
+            return redirect()->route('login.form')
+                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
+                // Eliminado: ->header('Clear-Site-Data', '"cache", "cookies", "storage"');
         }
-        return view('auth.login');
+
+        // Si no autenticado, devuelve la vista directamente con headers anti-caché
+        return response()->view('auth.login')
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
+            // Eliminado: ->header('Clear-Site-Data', '"cache", "cookies", "storage"');
     }
 
     public function login(Request $request)
@@ -70,17 +90,18 @@ class LoginController extends Controller
 
     public function logout(Request $request)
     {
-        Auth::guard('web')->logout(); // Especificar el guard 'web'
+        \Log::info('Iniciando logout', ['user_id' => auth()->id() ?? 'none']);
+        Auth::guard('web')->logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
-        // Limpiar manualmente el token de Google si está presente
-        \Session::forget('oauth_token');
+        \Session::forget('oauth_token'); // Para Google
         \Session::save();
+        \Log::info('Sesión invalidada completamente');
         return redirect()->route('login')
             ->with('status', 'Sesión cerrada exitosamente.')
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0')
-            ->header('Clear-Site-Data', '"cache", "cookies", "storage"'); // Limpiar datos del cliente
+            ->header('Clear-Site-Data', '"cache", "cookies", "storage"');
     }
 }

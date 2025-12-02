@@ -815,9 +815,15 @@ label[for="img"] {
 }
 
 .btn-xs {
-    padding: 0.5rem 0.5rem;
-    font-size: 5rem;
-    border-radius: 0.5rem;
+    padding: 0.5rem 0.5rem; /* Padding más pequeño para botones chiquitos */
+    font-size: 1rem; /* Corregido de 5rem (typo enorme) a tamaño pequeño */
+    border-radius: 0.25rem; /* Radio más pequeño */
+    line-height: 1; /* Altura de línea ajustada */
+}
+
+/* Override para íconos dentro de btn-xs para que sean pequeños */
+.btn-xs i {
+    font-size: 1.5rem; /* Tamaño de ícono coincidente con el botón */
 }
 
 /* Estilos para el switch */
@@ -971,14 +977,14 @@ input:checked + .slider:before {
     background-color: #fff;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    padding: 0.5rem;
+    padding: 1rem;
     transition: box-shadow 0.3s ease, transform 0.3s ease;
     position: relative;
-    min-height: 50px; /* Mantén o ajusta la altura mínima si lo deseas */
-    display: flex; /* Usa Flexbox para centrar verticalmente */
-    flex-direction: column; /* Apila los elementos verticalmente */
-    justify-content: center; /* Centra verticalmente el contenido */
-    align-items: flex-start; /* Alinea los elementos a la izquierda horizontalmente */
+    height: auto !important;          /* ← Quitamos altura fija */
+    min-height: 60px;                 /* ← Altura mínima cómoda (como antes) */
+    display: flex;
+    align-items: center;              /* ← Centrado vertical perfecto */
+    overflow: hidden;                 /* ← Seguimos cortando desbordes */
 }
 
 .project-box:hover {
@@ -986,12 +992,17 @@ input:checked + .slider:before {
     transform: translateY(-2px);
 }
 
+/* El enlace que contiene icono + nombre */
 .project-card-link {
     display: flex;
     align-items: center;
     gap: 0.75rem;
     text-decoration: none;
     color: #202124;
+    flex: 1;
+    min-width: 0;                     /* ← Importante para que el truncate funcione dentro de flex */
+    padding-right: 20px;              /* ← ESPACIO RESERVADO para los 3 puntos (esto es clave) */
+    box-sizing: border-box;
 }
 
 .project-icon {
@@ -1007,7 +1018,9 @@ input:checked + .slider:before {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex: 1;                          /* ← Ocupa todo el espacio disponible */
 }
+
 .project-context-menu {
     position: absolute;
     top: 50%; /* Centra verticalmente respecto a la altura de .project-box */
@@ -1235,7 +1248,26 @@ input:checked + .slider:before {
 .modal-footer .btn {
     margin-top: 0 !important;
 }
+/* Centrado de encabezados y celdas (excepto nombre) */
+#planilla-rj table.planilla-zpend-table th:not([data-column="nombre"]),
+#planilla-rj table.planilla-zpend-table td:not(:first-child) {
+    text-align: center !important;
+}
 
+/* Fuerza centrado en columna acciones (botones) */
+#planilla-rj table.planilla-zpend-table th[data-column="acciones"],
+#planilla-rj table.planilla-zpend-table td.planilla-action-buttons {
+    text-align: center !important;
+    padding: 4px !important; /* Más compacto */
+}
+
+/* Contenedor de botones centrado */
+#planilla-rj .planilla-action-buttons {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 4px !important;
+}
 
 @media (max-width: 991px) {
     .main-header {
@@ -1334,4 +1366,28 @@ input:checked + .slider:before {
         transform: translateY(0);
         border: 3px solid;
     }
+}
+/* Reducir tamaño de íconos en botones de acción */
+.action-buttons .btn-xs i {
+    font-size: 1rem !important; /* Antes era 1.5rem, ahora más pequeño */
+    line-height: 1 !important;
+    vertical-align: middle;
+}
+
+/* Asegurar que el botón sea compacto y el ícono esté centrado */
+.action-buttons .btn-xs {
+    width: 32px !important;
+    height: 32px !important;
+    padding: 0 !important;
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px !important;
+    font-size: 0.75rem !important;
+    line-height: 1;
+}
+
+/* Opcional: más espacio entre botones */
+.action-buttons {
+    gap: 4px !important;
 }

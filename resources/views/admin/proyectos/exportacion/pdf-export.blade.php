@@ -62,8 +62,9 @@
             line-height: 1.5;
         }
         .info-general p {
-            margin: 5px 0;
-            line-height: 1.5;
+            margin: 6px 0;
+            line-height: 1.6;
+            font-size: 11.5pt;
         }
         .spacer {
             margin-bottom: 30px;
@@ -102,13 +103,12 @@
         text-align: center;        /* centra contenido inline/inline-block */
         width: 100%;
         margin: 0 auto;
-        /* evita que el contenedor fuerce saltos de página raros */
         page-break-inside: avoid;
         }
 
         /* imagen como inline-block para compatibilidad con los motores PDF */
         .activity-image {
-        display: inline-block;     /* <- importante para PDF */
+        display: inline-block; 
         margin: 0 auto;
         max-width: 220px;
         max-height: 220px;
@@ -130,25 +130,42 @@
             font-style: italic;
             margin-top: 10px;
         }
+
+        .fecha-exportacion {
+            text-align: center;
+            font-size: 12pt;
+            color: #555;
+            margin: 10px 0 30px 0;
+        }
+
+        .total-gastado {
+            color: #c00c0c !important;
+            font-weight: bold;
+            font-size: 13pt;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 40px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 11pt;
+            color: #666;
+        }
+
+        .footer .pagenum:before {
+            content: "Página " counter(page);
+        }
     </style>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const sections = document.querySelectorAll('.section');
-            let pageNum = 1;
-            sections.forEach((section) => {
-                const pageNumDiv = document.createElement('div');
-                pageNumDiv.className = 'page-number';
-                pageNumDiv.textContent = `Página ${pageNum}`;
-                section.appendChild(pageNumDiv);
-                pageNum++;
-            });
-        });
-    </script>
 </head>
 <body>
     <img src="{{ public_path('images/BARUC_LOGO.jpeg') }}" alt="Logo Baruc" class="logo">
     <div class="watermark">CONFIDENCIAL</div>
     <h1>{{ $proyecto->nombre_proyecto }}</h1>
+    <div class="fecha-exportacion">
+        Generado el {{ now()->format('d/m/Y') }} a las {{ now()->format('H:i') }} hrs
+    </div>
 
     <div class="section" style="page-break-before: auto;">
         <div class="intro-text">
@@ -157,16 +174,51 @@
 
         <h2>Información General</h2>
         <div class="info-general">
-            <p><strong>Cliente:</strong> {{ $proyecto->cliente_proyecto }}</p>
+           <p><strong>Cliente:</strong> {{ $proyecto->cliente_proyecto }}</p>
             <p><strong>Descripción:</strong> {{ $proyecto->descripcion_proyecto ?? 'N/A' }}</p>
             <p><strong>Fecha de Inicio:</strong> {{ $proyecto->fechapr->fecha_inicio ? $proyecto->fechapr->fecha_inicio->format('d/m/Y') : 'N/A' }}</p>
             <p><strong>Fecha Fin Aproximada:</strong> {{ $proyecto->fechapr->fecha_fin_aprox ? $proyecto->fechapr->fecha_fin_aprox->format('d/m/Y') : 'N/A' }}</p>
             <p><strong>Monto Inicial:</strong> S/ {{ number_format($proyecto->montopr->monto_inicial ?? 0, 2) }}</p>
-            <p><strong>Cantidad de Trabajadores:</strong> {{ count($proyecto->planilla) }}</p>
-            <p><strong>Sueldo Estimado para todos los Trabajadores:</strong> S/ {{ number_format($proyecto->planilla->sum('pago') ?? 0, 2) }}</p>
+            <p><strong>Cantidad de Trabajadores:</strong> {{ $proyecto->planilla->count() }}</p>
+
+            <!-- SCTR -->
+            <p><strong>SCTR:</strong> 
+                @if($proyecto->egresos && $proyecto->egresos->scr > 0)
+                    S/ {{ number_format($proyecto->egresos->scr, 2) }}
+                @else
+                    <em style="color: #888;">No se implementó este gasto en el proyecto</em>
+                @endif
+            </p>
+
+            <!-- Gastos Administrativos -->
+            <p><strong>Gastos Administrativos:</strong> 
+                @if($proyecto->egresos && $proyecto->egresos->gastos_administrativos > 0)
+                    S/ {{ number_format($proyecto->egresos->gastos_administrativos, 2) }}
+                @else
+                    <em style="color: #888;">No se implementó este gasto en el proyecto</em>
+                @endif
+            </p>
         </div>
         <div class="spacer"></div>
     </div>
+    
+    @php
+    // Cálculos reales (siempre correctos)
+    $materiales = $proyecto->materiales->sum('monto_mat');
+    $planilla_sueldo = $proyecto->planilla->sum('pago');
+    $planilla_alimentacion = $proyecto->planilla->sum('alimentacion_trabajador');
+    $planilla_hospedaje = $proyecto->planilla->sum('hospedaje_trabajador');
+    $planilla_pasajes = $proyecto->planilla->sum('pasajes_trabajador');
+    $planilla_total = $planilla_sueldo + $planilla_alimentacion + $planilla_hospedaje + $planilla_pasajes;
+    $servicios = $proyecto->servicios->sum('monto');
+    $gastos_extra = $proyecto->gastosExtra->sum(fn($g) => $g->alimentacion_general + $g->hospedaje + $g->pasajes);
+    $scr = $proyecto->egresos->scr ?? 0;
+    $gastos_admin = $proyecto->egresos->gastos_administrativos ?? 0;
+
+    $total_egresos = $materiales + $planilla_total + $servicios + $gastos_extra + $scr + $gastos_admin;
+    $monto_inicial = $proyecto->montopr->monto_inicial ?? 0;
+    $utilidad = max(0, $monto_inicial - $total_egresos);
+@endphp
 
     <div class="section">
         <h2>Financiadores</h2>
@@ -197,12 +249,26 @@
     <div class="section">
         <h2>Personal</h2>
         <table>
-            <thead><tr><th>Trabajador</th><th>DNI</th><th>Pago</th><th>Alimentación</th><th>Hospedaje</th><th>Pasajes</th><th>Estado</th></tr></thead>
+            <thead><tr><th>Trabajador</th><th>DNI</th><th>Sueldo</th><th>Alimentación</th><th>Hospedaje</th><th>Pasajes</th><th>Total</th><th>Estado</th></tr></thead>
             <tbody>
                 @foreach ($proyecto->planilla as $pl)
-                    <tr><td>{{ $pl->trabajador->nombre_trab }} {{ $pl->trabajador->apellido_trab }}</td><td>{{ $pl->trabajador->dni_trab }}</td><td>{{ number_format($pl->pago, 2) }}</td><td>{{ number_format($pl->alimentacion_trabajador, 2) }}</td><td>{{ number_format($pl->hospedaje_trabajador, 2) }}</td><td>{{ number_format($pl->pasajes_trabajador, 2) }}</td><td>{{ $pl->estado }}</td></tr>
+                    @php $total_trab = $pl->pago + $pl->alimentacion_trabajador + $pl->hospedaje_trabajador + $pl->pasajes_trabajador @endphp
+                    <tr>
+                        <td>{{ $pl->trabajador->nombre_trab }} {{ $pl->trabajador->apellido_trab }}</td>
+                        <td>{{ $pl->trabajador->dni_trab }}</td>
+                        <td>{{ number_format($pl->pago, 2) }}</td>
+                        <td>{{ number_format($pl->alimentacion_trabajador, 2) }}</td>
+                        <td>{{ number_format($pl->hospedaje_trabajador, 2) }}</td>
+                        <td>{{ number_format($pl->pasajes_trabajador, 2) }}</td>
+                        <td><strong>{{ number_format($total_trab, 2) }}</strong></td>
+                        <td>{{ $pl->estado }}</td>
+                    </tr>
                 @endforeach
-                <tr><td colspan="2"><strong>Total</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('pago'), 2) }}</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('alimentacion_trabajador'), 2) }}</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('hospedaje_trabajador'), 2) }}</strong></td><td><strong>S/ {{ number_format($proyecto->planilla->sum('pasajes_trabajador'), 2) }}</strong></td><td></td></tr>
+                <tr>
+                    <td colspan="6"><strong>Total Personal</strong></td>
+                    <td><strong>S/ {{ number_format($planilla_total, 2) }}</strong></td>
+                    <td></td>
+                </tr>
             </tbody>
         </table>
     </div>
@@ -272,20 +338,6 @@
         </table>
     </div>
 
-    @php
-    // Cálculos reales (siempre correctos)
-    $materiales = $proyecto->materiales->sum('monto_mat');
-    $planilla = $proyecto->planilla->sum('pago');
-    $servicios = $proyecto->servicios->sum('monto');
-    $gastos_extra = $proyecto->gastosExtra->sum(fn($g) => $g->alimentacion_general + $g->hospedaje + $g->pasajes);
-    $scr = $proyecto->egresos->scr ?? 0;
-    $gastos_admin = $proyecto->egresos->gastos_administrativos ?? 0;
-
-    $total_egresos = $materiales + $planilla + $servicios + $gastos_extra + $scr + $gastos_admin;
-    $monto_inicial = $proyecto->montopr->monto_inicial ?? 0;
-    $utilidad = max(0, $monto_inicial - $total_egresos);
-@endphp
-
 <!-- EGRESOS -->
 <div class="section">
     <h2>Egresos</h2>
@@ -293,9 +345,9 @@
         <thead><tr><th>Categoría</th><th>Monto</th></tr></thead>
         <tbody>
             <tr><td>Materiales</td><td>S/ {{ number_format($materiales, 2) }}</td></tr>
-            <tr><td>Planilla</td><td>S/ {{ number_format($planilla, 2) }}</td></tr>
+            <tr><td>Planilla</td><td>S/ {{ number_format($planilla_total, 2) }}</td></tr>
             <tr><td>Servicios</td><td>S/ {{ number_format($servicios, 2) }}</td></tr>
-            <tr><td>SCR</td><td>S/ {{ number_format($scr, 2) }}</td></tr>
+            <tr><td>SCTR</td><td>S/ {{ number_format($scr, 2) }}</td></tr>
             <tr><td>Gastos Administrativos</td><td>S/ {{ number_format($gastos_admin, 2) }}</td></tr>
             <tr><td>Gastos Extra</td><td>S/ {{ number_format($gastos_extra, 2) }}</td></tr>
             <tr><td><strong>Total</strong></td><td><strong>S/ {{ number_format($total_egresos, 2) }}</strong></td></tr>
@@ -331,19 +383,29 @@
 
     <!-- RESUMEN DE UTILIDAD -->
 <div class="section">
-    <h2>Resumen de Utilidad</h2>
-    <div class="info-general">
-        <p><strong>Monto Inicial:</strong> S/ {{ number_format($monto_inicial, 2) }}</p>
-        <p><strong>Total Gastado:</strong></p>
-        <p>- Materiales: S/ {{ number_format($materiales, 2) }}</p>
-        <p>- Planilla: S/ {{ number_format($planilla, 2) }}</p>
-        <p>- Servicios: S/ {{ number_format($servicios, 2) }}</p>
-        <p>- SCR: S/ {{ number_format($scr, 2) }}</p>
-        <p>- Gastos Administrativos: S/ {{ number_format($gastos_admin, 2) }}</p>
-        <p>- Gastos Extra: S/ {{ number_format($gastos_extra, 2) }}</p>
-        <p><strong>Total Gastado:</strong> S/ {{ number_format($total_egresos, 2) }}</p>
-        <p><strong>Monto Restante:</strong> S/ {{ number_format($utilidad, 2) }}</p>
+        <h2>Resumen de Utilidad</h2>
+        <div class="info-general">
+            <p><strong>Monto Inicial:</strong> S/ {{ number_format($monto_inicial, 2) }}</p>
+            <p><strong>Total Gastado:</strong></p>
+            <p>- Materiales: S/ {{ number_format($materiales, 2) }}</p>
+            <p>- Planilla: S/ {{ number_format($planilla_total, 2) }}</p>
+            <p>- Servicios: S/ {{ number_format($servicios, 2) }}</p>
+            <p>- SCTR: 
+                @if($scr > 0) S/ {{ number_format($scr, 2) }} @else <em style="color:#888;">No se implementó</em> @endif
+            </p>
+            <p>- Gastos Administrativos: 
+                @if($gastos_admin > 0) S/ {{ number_format($gastos_admin, 2) }} @else <em style="color:#888;">No se implementó</em> @endif
+            </p>
+            <p>- Gastos Extra: S/ {{ number_format($gastos_extra, 2) }}</p>
+            <p class="total-gastado"><strong>Total Gastado:</strong> S/ {{ number_format($total_egresos, 2) }}</p>
+            <p><strong>Utilidad / Monto Restante:</strong> <span style="color: {{ $utilidad > 0 ? 'green' : 'red' }}; font-weight:bold;">
+                S/ {{ number_format($utilidad, 2) }}
+            </span></p>
+        </div>
     </div>
-</div>
+    <!-- PAGINACIÓN QUE SÍ FUNCIONA -->
+    <div class="footer">
+        <span class="pagenum"></span>
+    </div>
 </body>
 </html>

@@ -32,18 +32,17 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 // Ruta raíz (redirige al primer proyecto)
 Route::get('/', [ProyectosController::class, 'dashboardHome'])
     ->name('dashboard')
-    ->middleware('auth');
+    ->middleware('auth', 'no-cache');
 
 Route::resource('servicios', ServicioController::class);
 
 // Ruta para ver un proyecto en específico
 Route::get('/dashboard/{id}', [ProyectosController::class, 'dashboard'])
     ->name('dashboard.proyecto')
-    ->middleware('auth');
+    ->middleware('auth', 'no-cache');
 
 // Rutas protegidas (solo para usuarios autenticados)
-Route::middleware(['auth'])->group(function () {
-    app('router')->pushMiddlewareToGroup('web', \App\Http\Middleware\NoCache::class);
+Route::middleware(['auth', 'no-cache'])->group(function () {
     // Ruta para el perfil del usuario
     Route::get('/perfiles', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/perfiles', [ProfileController::class, 'update'])->name('profile.update');
@@ -69,10 +68,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/trabajadores/export/pdf', [TrabajadoresController::class, 'exportPdf'])->name('trabajadores.export.pdf');
         Route::get('/departamentos/export/excel', [DepartamentoController::class, 'exportExcel'])->name('departamentos.export.excel');
         Route::get('/departamentos/export/pdf', [DepartamentoController::class, 'exportPdf'])->name('departamentos.export.pdf');
-         Route::get('/proveedores/export/excel', [ProveedorController::class, 'exportExcel'])->name('proveedores.export.excel');
-        Route::get('/proveedores/export/pdf', [ProveedorController::class, 'exportPdf'])->name('proveedores.export.pdf');
+         Route::get('/financiadores/export/excel', [ProveedorController::class, 'exportExcel'])->name('financiadores.export.excel');
+        Route::get('/financiadores/export/pdf', [ProveedorController::class, 'exportPdf'])->name('financiadores.export.pdf');
         //Otras rutas
-        Route::resource('proveedores', ProveedorController::class)->parameters(['proveedores' => 'proveedor']);
+        Route::resource('financiadores', ProveedorController::class)->parameters(['financiadores' => 'proveedor']);
         Route::resource('departamentos', DepartamentoController::class);
         Route::resource('proyectos', ProyectosController::class)->parameters(['proyectos' => 'proyecto']);
         Route::post('/proyectos/{proyecto}/add-planilla', [ProyectosController::class, 'addPlanilla'])->name('proyectos.addPlanilla');
@@ -142,7 +141,7 @@ Route::middleware(['auth'])->group(function () {
 });
 
 // Rutas para Super Admin
-Route::middleware(['auth', 'superadmin'])->group(function () {
+Route::middleware(['auth', 'superadmin', 'no-cache'])->group(function () {
     Route::get('/allowed_users', [AllowedUserController::class, 'index'])->name('allowed_users.index');
     Route::post('/allowed_users', [AllowedUserController::class, 'store'])->name('allowed_users.store');
     Route::delete('/allowed_users/{allowedUser}', [AllowedUserController::class, 'destroy'])->name('allowed_users.destroy');

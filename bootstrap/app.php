@@ -10,11 +10,12 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
-    ->withMiddleware(function (Middleware $middleware) {
+    ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'superadmin' => \App\Http\Middleware\EnsureSuperAdmin::class,
+            'no-cache' => \App\Http\Middleware\NoCache::class,  // Agrega esta línea
         ]);
     })
-    ->withExceptions(function (Exceptions $exceptions) {
+    ->withExceptions(using: function (Exceptions $exceptions): void {
         //
     })->create();

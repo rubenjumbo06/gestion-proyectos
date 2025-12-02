@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Validation\Rule;
 
 class Proyectos extends Model
 {
@@ -92,5 +93,32 @@ class Proyectos extends Model
     public function actividades()
     {
         return $this->hasMany(ActividadProyecto::class, 'proyecto_id', 'id_proyecto');
+    }
+
+    // === LO NUEVO: VALIDACIÓN ÚNICA DE NOMBRE + LIMPIEZA ===
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::saving(function ($proyecto) {
+            // Limpiar espacios y normalizar
+            $proyecto->nombre_proyecto = trim($proyecto->nombre_proyecto);
+
+            // Si es nuevo o el nombre cambió → verificar duplicado
+            if ($proyecto->isDirty('nombre_proyecto')) {
+                $query = self::whereRaw('LOWER(TRIM(nombre_proyecto)) = ?', 
+                    [strtolower($proyecto->nombre_proyecto)]);
+
+                if ($proyecto->exists) {
+                    $query->where('id_proyecto', '!=', $proyecto->id_proyecto);
+                }
+
+                if ($query->withTrashed()->exists()) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'nombre_proyecto' => 'Ya existe un proyecto con este nombre (incluso eliminado).'
+                    ]);
+                }
+            }
+        });
     }
 }

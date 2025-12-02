@@ -24,9 +24,9 @@
                 </a>
             </li> -->
 
-            <!-- Proveedores -->
-            <li class="{{ Route::is('proveedores.*') ? 'active' : '' }}">
-                <a href="{{ url('/admin/proveedores') }}" title="Proveedores">
+            <!-- Financiadores -->
+            <li class="{{ Route::is('financiadores.*') ? 'active' : '' }}">
+                <a href="{{ route('financiadores.index') }}" title="Financiadores">
                     <i class="fa fa-truck"></i> <span>Financiadores</span>
                 </a>
             </li>

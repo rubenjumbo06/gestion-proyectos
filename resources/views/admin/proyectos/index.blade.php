@@ -7,7 +7,6 @@
 <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 <!-- Font Awesome for icons -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-
 <section class="content-header">
     <h1>Proyectos <small>Controla la información de los proyectos</small></h1>
     <ol class="breadcrumb">
@@ -56,9 +55,12 @@
         @forelse ($allProyectos->sortByDesc('fecha_creacion')->take(4) as $proyecto)
             <div class="project-box">
                 <!-- Ícono de carpeta y nombre -->
-                <a href="{{ route('proyectos.show', $proyecto) }}" class="project-card-link">
-                    <i class="fas fa-folder project-icon"></i>
-                    <span class="project-name">{{ $proyecto->nombre_proyecto }}</span>
+                <a href="{{ route('proyectos.show', $proyecto) }}" class="project-card-link flex items-center space-x-3 flex-1 min-w-0">
+                    <i class="fas fa-folder text-yellow-500 text-4xl flex-shrink-0"></i>
+                    <span class="project-name text-lg font-medium text-gray-800 truncate" 
+                        title="{{ $proyecto->nombre_proyecto }}">
+                        {{ $proyecto->nombre_proyecto }}
+                    </span>
                 </a>
                 <!-- Menú contextual -->
                 <div class="project-context-menu">
@@ -439,10 +441,12 @@ function loadMoreProjects() {
                     const projectBox = document.createElement('div');
                     projectBox.className = 'project-box bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition-shadow';
                     projectBox.innerHTML = `
-                        <a href="${ '{{ route('proyectos.show', ['proyecto' => 'id_placeholder']) }}'.replace('id_placeholder', proyecto.id_proyecto) }" class="project-card-link block p-4 text-gray-800 hover:bg-gray-100">
-                            <i class="fas fa-folder project-icon text-yellow-500 mr-2"></i>
-                            <span class="project-name text-lg font-medium">${proyecto.nombre_proyecto}</span>
-                        </a>
+                        <div class="flex items-center space-x-3 min-w-0">
+                            <i class="fas fa-folder text-yellow-500 text-3xl flex-shrink-0"></i>
+                            <span class="text-lg font-medium text-gray-800 truncate flex-1 min-w-0" title="${proyecto.nombre_proyecto}">
+                                ${proyecto.nombre_proyecto}
+                            </span>
+                        </div>
                         <div class="project-context-menu relative">
                             <button class="project-context-btn text-gray-500 hover:text-gray-700 p-2" onclick="toggleContextMenu('context-menu-${proyecto.id_proyecto}')">
                                 <i class="fas fa-ellipsis-v"></i>

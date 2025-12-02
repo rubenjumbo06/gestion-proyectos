@@ -14,8 +14,8 @@
             <h3 class="box-title">Lista de Financiadores</h3>
             <div class="flex justify-end space-x-2">
                 @if(Auth::check() && Auth::user()->puede_descargar)
-                    <a href="{{ route('proveedores.export.pdf') }}" class="btn btn-danger">Exportar a PDF</a>
-                    <a href="{{ route('proveedores.export.excel') }}" class="btn btn-success">Exportar a Excel</a>
+                    <a href="{{ route('financiadores.export.pdf') }}" class="btn btn-danger">Exportar a PDF</a>
+                    <a href="{{ route('financiadores.export.excel') }}" class="btn btn-success">Exportar a Excel</a>
                 @endif
                 @if(Auth::check() && Auth::user()->puede_agregar)
                     <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#addProveedorModal">Agregar Financiador</a>
@@ -50,7 +50,7 @@
             <div class="modal fade" id="addProveedorModal" tabindex="-1" role="dialog" aria-labelledby="addProveedorModalLabel">
                 <div class="modal-dialog" role="document">
                     <div class="modal-content custom-modal">
-                        <form action="{{ route('proveedores.store') }}" method="POST" id="addProveedorForm">
+                        <form action="{{ route('financiadores.store') }}" method="POST" id="addProveedorForm">
                             @csrf
                             <div class="modal-header bg-primary">
                                 <h4 class="modal-title text-white" id="addProveedorModalLabel">Añadir Nuevo Financiador</h4>
@@ -128,7 +128,7 @@
                                     <a href="#" class="btn btn-warning btn-xs" data-toggle="modal" data-target="#editProveedorModal{{ $proveedor->id_proveedor }}"><i class="fa fa-edit"></i></a>
                                 @endif
                                 @if(Auth::check() && Auth::user()->puede_eliminar)
-                                    <form action="{{ route('proveedores.destroy', $proveedor) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este financiador?');" style="display:inline;">
+                                    <form action="{{ route('financiadores.destroy', $proveedor) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este financiador?');" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
                                         <button type="submit" class="btn btn-danger btn-xs"><i class="fa fa-trash"></i></button>
@@ -171,7 +171,7 @@
                         <div class="modal fade" id="editProveedorModal{{ $proveedor->id_proveedor }}" tabindex="-1" role="dialog">
                             <div class="modal-dialog" role="document">
                                 <div class="modal-content custom-modal">
-                                    <form action="{{ route('proveedores.update', $proveedor) }}" method="POST" id="editProveedorForm{{ $proveedor->id_proveedor }}">
+                                    <form action="{{ route('financiadores.update', $proveedor) }}" method="POST" id="editProveedorForm{{ $proveedor->id_proveedor }}">
                                         @csrf
                                         @method('PUT')
                                         <div class="modal-header bg-primary">
@@ -316,7 +316,7 @@
     // Solo letras, espacios y puntos
     document.querySelectorAll('.letter-dot-only').forEach(input => {
         input.addEventListener('input', function() {
-            this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s.]/g, '');
+            this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s.]/g, '');
         });
     });
 
