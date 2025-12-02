@@ -6,10 +6,10 @@
             <div class="box-header with-border">
                 <h3 class="box-title">Resumen de Personal</h3>
                 <div class="box-tools pull-right">
-                    <button id="marcar-asistencia-btn" type="button" class="btn btn-success btn-sm">
+                    <button id="marcar-asistencia-btn" type="button" class="btn btn-success btn-sm {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" {{ $isFinalized ? 'disabled' : '' }}>
                         <i class="fa fa-check"></i> Marcar Asistencia
                     </button>
-                    <button type="button" class="btn btn-primary btn-sm" onclick="openPlanillaModal()">
+                    <button type="button" class="btn btn-primary btn-sm {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" onclick="openPlanillaModal()" {{ $isFinalized ? 'disabled' : '' }}>
                         <i class="fa fa-plus"></i>
                     </button>
                 </div>
@@ -38,9 +38,9 @@
             </div>
             <div class="box-body">
                 <div class="row">
-                    <div class="col-sm-4"><p><strong>Asignado (monto_operativos):</strong> S/<span id="per-assigned">{{ isset($budgetPersonal['assigned']) ? number_format($budgetPersonal['assigned'], 2) : '0.00' }}</span></p></div>
-                    <div class="col-sm-4"><p><strong>Gastado(Personal + Extras):</strong> S/<span id="per-spent">{{ isset($budgetPersonal['spent']) ? number_format($budgetPersonal['spent'], 2) : '0.00' }}</span></p></div>
-                    <div class="col-sm-4"><p><strong>Restante:</strong> S/<span id="per-remaining">{{ isset($budgetPersonal['remaining']) ? number_format($budgetPersonal['remaining'], 2) : '0.00' }}</span></p></div>
+                    <div class="col-sm-4"><p><strong>Asignado:</strong> S/<span id="per-assigned">{{ isset($budgetPersonal['assigned']) ? number_format($budgetPersonal['assigned'], 2) : '0.00' }}</span></p></div>
+                    <div class="col-sm-4"><p><strong>Gastado(Personal + Extras):</strong> <span class="text-red-600">S/<span id="per-spent">{{ isset($budgetPersonal['spent']) ? number_format($budgetPersonal['spent'], 2) : '0.00' }}</span></span></p></div>
+                    <div class="col-sm-4"><p><strong>Restante:</strong> <span class="text-green-600">S/<span id="per-remaining">{{ isset($budgetPersonal['remaining']) ? number_format($budgetPersonal['remaining'], 2) : '0.00' }}</span></span></p></div>
                 </div>
             </div>
         </div>
@@ -83,13 +83,13 @@
                                     <td class="text-right">S/{{ number_format($planillaItem->pasajes_trabajador, 2) }}</td>
                                     <td>{{ $planillaItem->estado }}</td>
                                     <td class="action-buttons planilla-action-buttons">
-                                        <button type="button" class="btn text-2xl set-pago-dia-btn" onclick="openPagoDiaModal({{ $planillaItem->id_planilla }}, '{{ $planillaItem->trabajador->nombre_trab }} {{ $planillaItem->trabajador->apellido_trab }}', {{ (float)($planillaItem->pago_dia ?? 0) }})" title="Establecer pago diario" {{ ($planillaItem->pago_dia ?? 0) > 0 ? 'disabled' : '' }}>
+                                        <button type="button" class="btn text-2xl set-pago-dia-btn {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" onclick="openPagoDiaModal({{ $planillaItem->id_planilla }}, '{{ $planillaItem->trabajador->nombre_trab }} {{ $planillaItem->trabajador->apellido_trab }}', {{ (float)($planillaItem->pago_dia ?? 0) }})" title="Establecer pago diario" {{ ($planillaItem->pago_dia ?? 0) > 0 || $isFinalized ? 'disabled' : '' }}>
                                             <i class="fas fa-plus action-icon"></i>
                                         </button>
-                                        <button type="button" class="open-update-modal text-yellow-500 hover:text-yellow-600 text-2xl" data-planilla-id="{{ $planillaItem->id_planilla }}">
+                                        <button type="button" class="open-update-modal text-yellow-500 hover:text-yellow-600 text-2xl {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" data-planilla-id="{{ $planillaItem->id_planilla }}" {{ $isFinalized ? 'disabled' : '' }}>
                                             <i class="fas fa-edit"></i>
                                         </button>
-                                        <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl" onclick="removeTrabajador({{ $planillaItem->id_planilla }}, event)">
+                                        <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" onclick="removeTrabajador({{ $planillaItem->id_planilla }}, event)" {{ $isFinalized ? 'disabled' : '' }}>
                                             <i class="fas fa-trash"></i>
                                         </button>
                                         <!-- <button type="button" class="btn btn-info btn-xs open-details-modal"
@@ -665,6 +665,7 @@
             $('#trabajadores-modal').modal('hide');
             refreshBudgetPersonal();
             updateResumen();
+            document.dispatchEvent(new CustomEvent('personalSaved'));
             console.log('[planilla] Trabajador agregado, tabla actualizada - Paso 11');
         })
         .catch(error => {
@@ -786,6 +787,7 @@
             }
             $('#pago-dia-modal').modal('hide');
             refreshBudgetPersonal();
+            document.dispatchEvent(new CustomEvent('personalSaved'));
             showToast('Pago diario guardado correctamente', 'success', 5000);
         })
         .catch(err => {
@@ -797,8 +799,44 @@
     };
 
     // Abrir modal de actualizar gastos
-    function openUpdateModal(planillaId) {
+    async function openUpdateModal(planillaId) {
         console.log('[planilla] openUpdateModal:', { planillaId });
+
+        // VALIDATION: Check attendance
+        try {
+            // 1. Check if attendance is marked for the project today
+            const statusRes = await fetch(`${BASE}/admin/proyectos/${proyectoId}/asistencia/status`, {
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            const status = await statusRes.json();
+
+            if (status && status.today_marked) {
+                // 2. If marked, check if this worker is absent
+                // Use local date for "today" to match the attendance marking logic
+                const d = new Date();
+                const today = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                
+                const calendarRes = await fetch(`/api/proyectos/${proyectoId}/calendar/day/${today}`, {
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                
+                if (calendarRes.ok) {
+                    const calendarData = await calendarRes.json();
+                    // Check if worker is in 'ausentes' list
+                    // The list contains objects with { id_planilla: ... }
+                    const isAbsent = calendarData.ausentes.some(a => a.id_planilla == planillaId);
+                    
+                    if (isAbsent) {
+                        showToast('No puedes agregar gastos a este trabajador porque no asistió hoy.', 'error', 6000);
+                        return; // BLOCK
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('[planilla] Error validating attendance:', e);
+            // Proceed if validation fails (fail open)
+        }
+
         const modal = document.getElementById('update-modal');
         const form = document.getElementById('update-form');
         const title = document.getElementById('update-modal-title');
@@ -869,6 +907,7 @@
                         }
                         $('#update-modal').modal('hide');
                         refreshBudgetPersonal();
+                        document.dispatchEvent(new CustomEvent('personalSaved'));
                         showToast('Gastos actualizados correctamente', 'success', 5000);
                     } else {
                         errorMessage.textContent = data.error || 'Error al actualizar los gastos';
@@ -958,7 +997,9 @@
     // Marcar asistencia
     function marcarAsistenciaHoy() {
         console.log('[planilla] marcarAsistenciaHoy iniciado');
-        const hoy = new Date().toISOString().slice(0, 10);
+        // FIX: Use local date instead of UTC to match backend timezone (America/Lima)
+        const d = new Date();
+        const hoy = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
         const errorBox = document.getElementById('asistencia-error');
         errorBox.classList.add('hidden');
         const totalRows = document.querySelectorAll('#trabajadores-table tr').length;
@@ -1031,6 +1072,7 @@
                 }
             });
             refreshBudgetPersonal();
+            document.dispatchEvent(new CustomEvent('personalSaved'));
         }).catch(err => {
             console.error('[planilla] Error en marcarAsistenciaHoy:', err.message);
             showToast('Error al marcar asistencia: ' + err.message, 'error', 6000);
@@ -1185,6 +1227,7 @@
                 if (row) row.remove();
                 updateResumen();
                 refreshBudgetPersonal();
+                document.dispatchEvent(new CustomEvent('personalSaved'));
                 $('#eliminar-modal').modal('hide');
                 showToast(`Trabajador ${escapeHtml(nombre)} eliminado correctamente`, 'success', 5000);
                 pendingDeleteId = null;

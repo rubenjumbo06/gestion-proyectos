@@ -20,7 +20,7 @@
             <button class="tab-button flex-1 py-3 text-center border-b-4 border-blue-600 focus:outline-none" data-tab="estadisticas">Estadísticas</button>
             <button class="tab-button flex-1 py-3 text-center border-b-4 border-transparent hover:bg-gray-100" data-tab="materiales-tab">Materiales</button>
             <button class="tab-button flex-1 py-3 text-center border-b-4 border-transparent hover:bg-gray-100" data-tab="planilla">Personal</button>
-            <button class="tab-button flex-1 py-3 text-center border-b-4 border-transparent hover:bg-gray-100" data-tab="gastos_extra">Gastos Extras</button>
+            <button class="tab-button flex-1 py-3 text-center border-b-4 border-transparent hover:bg-gray-100" data-tab="gastos_extra">Servicios</button>
             <button class="tab-button flex-1 py-3 text-center border-b-4 border-transparent hover:bg-gray-100" data-tab="egresos">Egresos</button>
         </div>
     </div>
@@ -42,6 +42,17 @@
             </a>
         </div>
     </div>
+
+    @php
+        $isFinalized = !empty($proyecto->fechapr->fecha_fin_true);
+    @endphp
+
+    @if($isFinalized)
+        <div class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6" role="alert">
+            <p class="font-bold">Proyecto Finalizado</p>
+            <p>Este proyecto ha sido finalizado el {{ \Carbon\Carbon::parse($proyecto->fechapr->fecha_fin_true)->format('d/m/Y') }}. No se pueden realizar más cambios.</p>
+        </div>
+    @endif
 
     <!-- ESTADÍSTICAS -->
     <div id="estadisticas" class="tab-content">
@@ -92,6 +103,7 @@
             'proyecto' => $proyecto,
             'materiales' => $materiales,
             'budgetMaterials' => $budgetMaterials ?? null,
+            'isFinalized' => $isFinalized,
         ])
     </div>
     <div id="planilla" class="tab-content hidden">
@@ -99,6 +111,7 @@
             'proyecto' => $proyecto,
             'budgetPersonal' => $budgetPersonal ?? null,
             'trabajadoresPreload' => $trabajadoresPreload ?? collect(),
+            'isFinalized' => $isFinalized,
         ])
     </div>
     <div id="gastos_extra" class="tab-content hidden">
@@ -106,10 +119,11 @@
             'proyecto' => $proyecto,
             'gastosExtra' => $gastosExtra,
             'budgetServicios' => $budgetServicios ?? null,
+            'isFinalized' => $isFinalized,
         ])
     </div>
     <div id="egresos" class="tab-content hidden">
-        @include('admin.proyectos.egresos', ['proyecto' => $proyecto])
+        @include('admin.proyectos.egresos', ['proyecto' => $proyecto, 'isFinalized' => $isFinalized])
     </div>
 </div>
 
@@ -175,8 +189,19 @@
         const balanceChart    = echarts.init(document.getElementById('balanceChart'));
         let calendarInstance = null;
 
-        const emptyBar = { title: { text: 'Sin datos', left: 'center' }, xAxis: { type: 'category', data: [] }, yAxis: { type: 'value' }, series: [{ type: 'bar', data: [] }] };
-        const emptyPie = { title: { text: 'Sin datos', left: 'center' }, series: [{ type: 'pie', data: [{ value: 1, name: 'Sin datos' }]}] };
+        const emptyBar = { 
+            title: { 
+                text: 'Sin datos', 
+                left: 'center', 
+                top: 'center',
+                textStyle: { color: '#9ca3af', fontSize: 16 }
+            }, 
+            grid: { left: 0, right: 0, top: 0, bottom: 0 },
+            xAxis: { show: false }, 
+            yAxis: { show: false }, 
+            series: [] 
+        };
+        const emptyPie = { title: { text: 'Sin datos', left: 'center', top: 'center', textStyle: { color: '#9ca3af', fontSize: 16 } }, series: [] };
 
         materialesChart.setOption(emptyBar);
         egresosChart.setOption(emptyPie);
@@ -222,22 +247,123 @@
             return { labels: [], data: [] };
         }
 
-        // === MATERIALES (SIN "Proveedores") ===
+        // === MATERIALES (MEJORADO) ===
         function buildMaterialesOption(payload) {
             const { labels, data: montos } = normalizeLabelsData(payload);
+            
+            if (labels.length === 0) {
+                return {
+                    title: {
+                        text: 'Sin datos',
+                        left: 'center',
+                        top: 'center',
+                        textStyle: { color: '#9ca3af', fontSize: 16 }
+                    },
+                    grid: { left: 0, right: 0, top: 0, bottom: 0 },
+                    xAxis: { show: false },
+                    yAxis: { show: false },
+                    series: []
+                };
+            }
+
+            // Si hay muchos datos, habilitamos scroll
+            const enableScroll = labels.length > 10;
+            const endPercent = enableScroll ? Math.min(100, Math.max(20, 1000 / labels.length)) : 100;
+
             return {
                 tooltip: {
                     trigger: 'axis',
-                    formatter: p => `<strong>${p[0].name}</strong><br/>Monto: <strong>S/ ${p[0].value.toFixed(2)}</strong>`,
-                    backgroundColor: 'rgba(0,0,0,0.8)',
-                    textStyle: { color: '#fff', fontSize: 13 },
-                    padding: 10
+                    axisPointer: { type: 'shadow' },
+                    formatter: p => {
+                        const val = p[0].value;
+                        return `
+                            <div style="font-family: 'Poppins', sans-serif; padding: 4px;">
+                                <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">${p[0].name}</div>
+                                <div style="color: #fbbf24;">S/ ${Number(val).toFixed(2)}</div>
+                            </div>
+                        `;
+                    },
+                    backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                    borderColor: '#374151',
+                    textStyle: { color: '#fff' },
+                    padding: 12,
+                    borderRadius: 8
                 },
-                grid: { left: 90, right: 20, top: 50, bottom: 60 },
-                xAxis: { type: 'value', name: 'Monto (S/)', nameLocation: 'middle', nameGap: 30, axisLabel: { formatter: 'S/ {value}', fontSize: 12 } },
-                yAxis: { type: 'category', data: labels, axisLabel: { fontSize: 12, interval: 0 } },
-                series: [{ type: 'bar', barWidth: 28, data: montos.map((v, i) => ({ value: v, itemStyle: { color: palette(i) } })) }]
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    top: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'value',
+                    axisLabel: { 
+                        formatter: val => `S/${val >= 1000 ? (val/1000).toFixed(1) + 'k' : val}`,
+                        color: '#6B7280',
+                        fontSize: 11
+                    },
+                    splitLine: {
+                        lineStyle: { type: 'dashed', color: '#E5E7EB' }
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: labels,
+                    axisLabel: {
+                        color: '#374151',
+                        fontSize: 12,
+                        width: 140, // Limitar ancho de etiqueta
+                        overflow: 'break', // Romper líneas si es muy largo
+                        interval: 0
+                    },
+                    axisTick: { show: false },
+                    axisLine: { lineStyle: { color: '#D1D5DB' } }
+                },
+                dataZoom: enableScroll ? [
+                    {
+                        type: 'slider',
+                        yAxisIndex: 0,
+                        width: 20,
+                        right: 10,
+                        start: 0,
+                        end: endPercent,
+                        borderColor: 'transparent',
+                        handleSize: '80%',
+                        handleStyle: { color: '#fff', shadowBlur: 3, shadowColor: 'rgba(0, 0, 0, 0.6)' },
+                        fillerColor: 'rgba(59, 130, 246, 0.2)'
+                    },
+                    {
+                        type: 'inside',
+                        yAxisIndex: 0,
+                        start: 0,
+                        end: endPercent,
+                        zoomOnMouseWheel: false,
+                        moveOnMouseWheel: true
+                    }
+                ] : [],
+                series: [{
+                    type: 'bar',
+                    data: montos.map((v, i) => ({
+                        value: v,
+                        itemStyle: {
+                            color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                                { offset: 0, color: palette(i) },
+                                { offset: 1, color: adjustColor(palette(i), -20) } // Un poco más oscuro al final
+                            ]),
+                            borderRadius: [0, 4, 4, 0]
+                        }
+                    })),
+                    barMaxWidth: 30,
+                    showBackground: true,
+                    backgroundStyle: { color: '#F3F4F6', borderRadius: [0, 4, 4, 0] }
+                }]
             };
+        }
+
+        // Helper para oscurecer color (para el gradiente)
+        function adjustColor(color, amount) {
+            return '#' + color.replace(/^#/, '').replace(/../g, color => ('0'+Math.min(255, Math.max(0, parseInt(color, 16) + amount)).toString(16)).substr(-2));
         }
 
         // === EGRESOS (LEYENDA ARRIBA, NO CHOCA) ===
@@ -401,7 +527,8 @@
                     getJSON(`${baseUrl}/materiales`),
                     getJSON(`${baseUrl}/egresos`),
                     getJSON(`${baseUrl}/gastos`),
-                    getJSON(`${baseUrl}/balance`)
+                    getJSON(`${baseUrl}/balance`),
+                    loadCalendarDataAndRender().then(() => calendarInstance && calendarInstance.render())
                 ]);
 
                 // Materiales + leyenda manual (sin "Proveedores")
@@ -432,7 +559,12 @@
 
         updateAll();
         refreshBtn.addEventListener('click', updateAll);
+
+        // Escuchar eventos de actualización
         document.addEventListener('materialSaved', updateAll);
+        document.addEventListener('personalSaved', updateAll);
+        document.addEventListener('gastoSaved', updateAll);
+        document.addEventListener('egresoSaved', updateAll);
 
         // === CALENDARIO ===
         function addOneDay(d) { const date = new Date(d); date.setDate(date.getDate() + 1); return date.toISOString().slice(0,10); }

@@ -8,9 +8,68 @@
     <div class="box-body">
         <div class="row">
             <div class="col-md-4"><p><strong>Asignado:</strong> S/<span id="srv-assigned">0.00</span></p></div>
-            <div class="col-md-4"><p><strong>Gastado:</strong> S/<span id="srv-spent">0.00</span></p></div>
-            <div class="col-md-4"><p><strong>Restante:</strong> S/<span id="srv-remaining">0.00</span></p></div>
+            <div class="col-md-4"><p><strong>Gastado:</strong> <span class="text-red-600">S/<span id="srv-spent">0.00</span></span></p></div>
+            <div class="col-md-4"><p><strong>Restante:</strong> <span class="text-green-600">S/<span id="srv-remaining">0.00</span></span></p></div>
         </div>
+    </div>
+</div>
+
+<!-- Lista de Servicios -->
+<div class="box box-primary">
+    <div class="box-header with-border">
+        <h3 class="box-title">Gestión de Servicios</h3>
+        <div class="box-tools pull-right">
+            @if(Auth::check() && Auth::user()->puede_agregar)
+                <button type="button" class="btn btn-primary btn-sm open-servicio-modal {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" data-servicio-id="" {{ $isFinalized ? 'disabled' : '' }}>
+                    <i class="fa fa-plus"></i> Agregar Servicio
+                </button>
+            @endif
+        </div>
+    </div>
+    <div class="box-body">
+        <table class="table table-bordered table-striped zpend-table" id="servicios-table">
+            <thead>
+                <tr>
+                    <th>Descripción</th>
+                    <th>Monto</th>
+                    <th>Fecha Creación</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if ($servicios->isNotEmpty())
+                    @foreach ($servicios as $servicio)
+                        <tr data-id="{{ $servicio->id_servicio }}">
+                            <td>{{ $servicio->descripcion_serv }}</td>
+                            <td>S/{{ number_format($servicio->monto, 2) }}</td>
+                            <td>{{ $servicio->created_at->format('d/m/Y H:i') }}</td>
+                            <td class="action-buttons">
+                                @if(Auth::check() && Auth::user()->puede_editar)
+                                    <button type="button" class=" btn open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                            data-servicio-id="{{ $servicio->id_servicio }}"
+                                            data-descripcion="{{ $servicio->descripcion_serv }}"
+                                            data-monto="{{ $servicio->monto }}"
+                                            {{ $isFinalized ? 'disabled' : '' }}>
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                @endif
+                                @if(Auth::check() && Auth::user()->puede_eliminar)
+                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl delete-servicio {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                            data-id="{{ $servicio->id_servicio }}"
+                                            {{ $isFinalized ? 'disabled' : '' }}>
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                @else
+                    <tr class="empty-row">
+                        <td colspan="4" class="text-center">No hay servicios registrados.</td>
+                    </tr>
+                @endif
+            </tbody>
+        </table>
     </div>
 </div>
 
@@ -39,7 +98,7 @@
         <h3 class="box-title">Gestión de Gastos Extras</h3>
         <div class="box-tools pull-right">
             @if(Auth::check() && Auth::user()->puede_agregar)
-                <button type="button" class="open-gasto-modal btn btn-primary btn-sm" data-gasto-id="">
+                <button type="button" class="open-gasto-modal btn btn-primary btn-sm {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" data-gasto-id="" {{ $isFinalized ? 'disabled' : '' }}>
                     <i class="fa fa-plus"></i> Agregar Gasto Extra
                 </button>
             @endif
@@ -68,12 +127,12 @@
                             <td>{{ $gasto->created_at->format('d/m/Y H:i') }}</td>
                             <td class="action-buttons">
                                 @if(Auth::check() && Auth::user()->puede_editar)
-                                    <button type="button" class="open-gasto-modal text-yellow-500 hover:text-yellow-600 text-2xl" data-gasto-id="{{ $gasto->id_gasto }}">
+                                    <button type="button" class="open-gasto-modal text-yellow-500 hover:text-yellow-600 text-2xl {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" data-gasto-id="{{ $gasto->id_gasto }}" {{ $isFinalized ? 'disabled' : '' }}>
                                         <i class="fa fa-edit"></i>
                                     </button>
                                 @endif
                                 @if(Auth::check() && Auth::user()->puede_eliminar)
-                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl" onclick="GastosExtras.remove({{ $gasto->id_gasto }})">
+                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}" onclick="GastosExtras.remove({{ $gasto->id_gasto }})" {{ $isFinalized ? 'disabled' : '' }}>
                                         <i class="fa fa-trash"></i>
                                     </button>
                                 @endif
@@ -91,63 +150,6 @@
         <div class="text-center">
             {{ $gastosExtra->links() }}
         </div>
-    </div>
-</div>
-
-<!-- Lista de Servicios -->
-<div class="box box-primary">
-    <div class="box-header with-border">
-        <h3 class="box-title">Gestión de Servicios</h3>
-        <div class="box-tools pull-right">
-            @if(Auth::check() && Auth::user()->puede_agregar)
-                <button type="button" class="btn btn-primary btn-sm open-servicio-modal" data-servicio-id="">
-                    <i class="fa fa-plus"></i> Agregar Servicio
-                </button>
-            @endif
-        </div>
-    </div>
-    <div class="box-body">
-        <table class="table table-bordered table-striped zpend-table" id="servicios-table">
-            <thead>
-                <tr>
-                    <th>Descripción</th>
-                    <th>Monto</th>
-                    <th>Fecha Creación</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                @if ($servicios->isNotEmpty())
-                    @foreach ($servicios as $servicio)
-                        <tr data-id="{{ $servicio->id_servicio }}">
-                            <td>{{ $servicio->descripcion_serv }}</td>
-                            <td>S/{{ number_format($servicio->monto, 2) }}</td>
-                            <td>{{ $servicio->created_at->format('d/m/Y H:i') }}</td>
-                            <td class="action-buttons">
-                                @if(Auth::check() && Auth::user()->puede_editar)
-                                    <button type="button" class=" btn open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl"
-                                            data-servicio-id="{{ $servicio->id_servicio }}"
-                                            data-descripcion="{{ $servicio->descripcion_serv }}"
-                                            data-monto="{{ $servicio->monto }}">
-                                        <i class="fas fa-edit"></i>
-                                    </button>
-                                @endif
-                                @if(Auth::check() && Auth::user()->puede_eliminar)
-                                    <button type="button" class="btn text-red-500 hover:text-red-600 text-2xl delete-servicio"
-                                            data-id="{{ $servicio->id_servicio }}">
-                                        <i class="fas fa-trash"></i>
-                                    </button>
-                                @endif
-                            </td>
-                        </tr>
-                    @endforeach
-                @else
-                    <tr class="empty-row">
-                        <td colspan="4" class="text-center">No hay servicios registrados.</td>
-                    </tr>
-                @endif
-            </tbody>
-        </table>
     </div>
 </div>
 
@@ -239,7 +241,28 @@
     </div>
 </div>
 
+<!-- Modal de confirmación para eliminar servicio -->
+<div class="modal fade" id="confirm-delete-servicio-modal" tabindex="-1" role="dialog" aria-labelledby="confirm-delete-servicio-modal-label">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content custom-modal">
+            <div class="modal-header bg-red">
+                <h4 class="modal-title text-white" id="confirm-delete-servicio-modal-label">Confirmar Eliminación</h4>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar este servicio?</p>
+                <p class="text-muted">Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="confirm-delete-servicio-btn">Eliminar</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+    const isProjectFinalized = @json($isFinalized);
+
 // === TOAST ===
 if (typeof window.showToast !== 'function') {
     (function(){
@@ -413,6 +436,7 @@ const GastosExtras = {
         this.updateRow(data.gasto || data);
         afterChange();
         $('#gastos-modal').modal('hide');
+        document.dispatchEvent(new CustomEvent('gastoSaved'));
         showToast('Guardado', 'success');
     },
 
@@ -431,12 +455,16 @@ const GastosExtras = {
             <td>${fecha}</td>
             <td class="action-buttons">
                 @if(Auth::check() && Auth::user()->puede_editar)
-                <button class="open-gasto-modal text-yellow-500 hover:text-yellow-600 text-2xl" data-gasto-id="${gasto.id_gasto}">
+                <button class="open-gasto-modal text-yellow-500 hover:text-yellow-600 text-2xl ${isProjectFinalized ? 'opacity-50 cursor-not-allowed' : ''}" 
+                        data-gasto-id="${gasto.id_gasto}"
+                        ${isProjectFinalized ? 'disabled' : ''}>
                     <i class="fa fa-edit"></i>
                 </button>
                 @endif
                 @if(Auth::check() && Auth::user()->puede_eliminar)
-                <button class="text-red-500 hover:text-red-600 text-2xl" onclick="GastosExtras.remove(${gasto.id_gasto})">
+                <button class="text-red-500 hover:text-red-600 text-2xl ${isProjectFinalized ? 'opacity-50 cursor-not-allowed' : ''}" 
+                        onclick="GastosExtras.remove(${gasto.id_gasto})"
+                        ${isProjectFinalized ? 'disabled' : ''}>
                     <i class="fa fa-trash"></i>
                 </button>
                 @endif
@@ -470,6 +498,7 @@ const GastosExtras = {
 
         afterChange();
         $('#confirm-delete-modal').modal('hide');
+        document.dispatchEvent(new CustomEvent('gastoSaved'));
         showToast('Eliminado', 'success');
     }
 };
@@ -482,12 +511,30 @@ const Servicios = {
     },
 
     bindEvents() {
-        document.querySelectorAll('.open-servicio-modal').forEach(btn => {
-            btn.onclick = () => this.openModal(
-                btn.dataset.servicioId || null,
-                btn.dataset.descripcion || '',
-                btn.dataset.monto || ''
-            );
+        // Event delegation for both Edit and Delete buttons in the table
+        document.getElementById('servicios-table')?.addEventListener('click', e => {
+            // Edit Button
+            const editBtn = e.target.closest('.open-servicio-modal');
+            if (editBtn && !editBtn.disabled) {
+                this.openModal(
+                    editBtn.dataset.servicioId || null,
+                    editBtn.dataset.descripcion || '',
+                    editBtn.dataset.monto || ''
+                );
+            }
+
+            // Delete Button
+            const delBtn = e.target.closest('.delete-servicio');
+            if (delBtn && !delBtn.disabled) {
+                this.remove(delBtn.dataset.id);
+            }
+        });
+
+        // Add button outside table (if any, though usually in header)
+        document.querySelectorAll('.open-servicio-modal:not(table .open-servicio-modal)').forEach(btn => {
+            btn.onclick = () => {
+                if (!btn.disabled) this.openModal();
+            }
         });
 
         document.getElementById('servicios-form')?.addEventListener('submit', e => {
@@ -495,10 +542,7 @@ const Servicios = {
             this.submit();
         });
 
-        document.getElementById('servicios-table')?.addEventListener('click', e => {
-            const delBtn = e.target.closest('.delete-servicio');
-            if (delBtn) this.remove(delBtn.dataset.id);
-        });
+        document.getElementById('confirm-delete-servicio-btn')?.addEventListener('click', () => this.confirmDelete());
     },
 
     openModal(id = null, desc = '', monto = '') {
@@ -539,6 +583,7 @@ const Servicios = {
         this.updateRow(data.servicio);
         $('#servicios-modal').modal('hide');
         afterChange();
+        document.dispatchEvent(new CustomEvent('gastoSaved'));
         showToast('Servicio guardado', 'success');
     },
 
@@ -553,13 +598,16 @@ const Servicios = {
             <td>S/${parseFloat(servicio.monto).toFixed(2)}</td>
             <td>${fecha}</td>
             <td class="action-buttons">
-                <button class="open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl"
+                <button class="open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl ${isProjectFinalized ? 'opacity-50 cursor-not-allowed' : ''}"
                         data-servicio-id="${servicio.id_servicio}"
                         data-descripcion="${servicio.descripcion_serv}"
-                        data-monto="${servicio.monto}">
+                        data-monto="${servicio.monto}"
+                        ${isProjectFinalized ? 'disabled' : ''}>
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="delete-servicio text-red-500 hover:text-red-600 text-2xl" data-id="${servicio.id_servicio}">
+                <button class="delete-servicio text-red-500 hover:text-red-600 text-2xl ${isProjectFinalized ? 'opacity-50 cursor-not-allowed' : ''}" 
+                        data-id="${servicio.id_servicio}"
+                        ${isProjectFinalized ? 'disabled' : ''}>
                     <i class="fas fa-trash"></i>
                 </button>
             </td>
@@ -574,11 +622,25 @@ const Servicios = {
         }
     },
 
-    async remove(id) {
-        if (!confirm('¿Eliminar este servicio?')) return;
+    remove(id) {
+        this.deleteId = id;
+        $('#confirm-delete-servicio-modal').modal('show');
+    },
+
+    async confirmDelete() {
+        if (!this.deleteId) return;
+        
+        const id = this.deleteId;
         await fetch(`/servicios/${id}`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' } });
         document.querySelector(`#servicios-table tr[data-id="${id}"]`)?.remove();
+        
+        if (!document.querySelector('#servicios-table tr[data-id]')) {
+            document.getElementById('servicios-table').querySelector('tbody').innerHTML = '<tr class="empty-row"><td colspan="4" class="text-center">No hay servicios registrados.</td></tr>';
+        }
+
         afterChange();
+        document.dispatchEvent(new CustomEvent('gastoSaved'));
+        $('#confirm-delete-servicio-modal').modal('hide');
         showToast('Eliminado', 'success');
     },
 
@@ -588,11 +650,14 @@ const Servicios = {
             const desc = row.cells[0].textContent;
             const monto = row.cells[1].textContent.replace('S/', '').trim();
             row.cells[3].innerHTML = `
-                <button class="open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl"
-                        data-servicio-id="${id}" data-descripcion="${desc}" data-monto="${monto}">
+                <button class="open-servicio-modal text-yellow-500 hover:text-yellow-600 text-2xl ${isProjectFinalized ? 'opacity-50 cursor-not-allowed' : ''}"
+                        data-servicio-id="${id}" data-descripcion="${desc}" data-monto="${monto}"
+                        ${isProjectFinalized ? 'disabled' : ''}>
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="delete-servicio text-red-500 hover:text-red-600 text-2xl" data-id="${id}">
+                <button class="delete-servicio text-red-500 hover:text-red-600 text-2xl ${isProjectFinalized ? 'opacity-50 cursor-not-allowed' : ''}" 
+                        data-id="${id}"
+                        ${isProjectFinalized ? 'disabled' : ''}>
                     <i class="fas fa-trash"></i>
                 </button>
             `;

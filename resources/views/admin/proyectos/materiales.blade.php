@@ -32,7 +32,8 @@
             <div class="box-tools pull-right">
                 <button id="add-material-btn" 
                         onclick="openAddMaterialWithCheck()"
-                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-full text-lg transition duration-300 flex items-center">
+                        class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-6 rounded-full text-lg transition duration-300 flex items-center {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}"
+                        {{ $isFinalized ? 'disabled' : '' }}>
                     <i class="fas fa-plus-circle mr-2"></i> Agregar Material
                 </button>
             </div>
@@ -59,16 +60,20 @@
                                 <td class="px-6 py-4">{{ \Carbon\Carbon::parse($material->fecha_mat)->format('d/m/Y') }}</td>
                                 <td class="px-6 py-4">{{ $material->updated_at ? \Carbon\Carbon::parse($material->updated_at)->format('d/m/Y') : 'N/A' }}</td>
                                 <td class="px-6 py-4 flex space-x-3 justify-center">
+                                <td class="px-6 py-4 flex space-x-3 justify-center">
                                     <button data-id="{{ $material->id_material }}" 
                                             onclick="editMaterial({{ $material->id_material }})" 
-                                            class="text-yellow-500 hover:text-yellow-600 text-2xl">
+                                            class="text-yellow-500 hover:text-yellow-600 text-2xl {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                            {{ $isFinalized ? 'disabled' : '' }}>
                                         <i class="fas fa-edit"></i>
                                     </button>
                                     <button data-id="{{ $material->id_material }}" 
                                             onclick="confirmDeleteMaterial({{ $material->id_material }})" 
-                                            class="text-red-500 hover:text-red-600 text-2xl">
+                                            class="text-red-500 hover:text-red-600 text-2xl {{ $isFinalized ? 'opacity-50 cursor-not-allowed' : '' }}"
+                                            {{ $isFinalized ? 'disabled' : '' }}>
                                         <i class="fas fa-trash"></i>
                                     </button>
+                                </td>
                                 </td>
                             </tr>
                         @endforeach
@@ -582,6 +587,7 @@ document.getElementById('addMaterialForm').addEventListener('submit', async func
         updateTable(data.material);
         this.reset();
         refreshBudgetMaterials();
+        document.dispatchEvent(new CustomEvent('materialSaved'));
     })
     .catch(error => {
         console.error('Error:', error);
@@ -631,6 +637,8 @@ document.getElementById('editMaterialForm').addEventListener('submit', function(
                 </td>
             `;
         }
+        refreshBudgetMaterials();
+        document.dispatchEvent(new CustomEvent('materialSaved'));
     })
     .catch(error => {
         console.error('Error:', error);
@@ -665,6 +673,7 @@ document.getElementById('deleteMaterialForm').addEventListener('submit', functio
         const row = document.querySelector(`tr[data-id="${data.material_id}"]`);
         if (row) row.remove();
         refreshBudgetMaterials();
+        document.dispatchEvent(new CustomEvent('materialSaved'));
     })
     .catch(error => {
         console.error('Error:', error);

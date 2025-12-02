@@ -179,7 +179,7 @@
                         <input type="number" id="scr" name="scr" step="0.01" min="0"
                             class="form-control"
                             value="{{ optional($egreso)->scr ?? 127.5 }}"
-                            {{ $egreso ? 'disabled' : '' }}
+                            {{ ($egreso || $isFinalized) ? 'disabled' : '' }}
                             placeholder="Ingresa el monto SCTR">
                     </div>
                 </div>
@@ -189,7 +189,7 @@
                         <input type="number" id="gastos_admin_mensual" name="gastos_admin_mensual" step="0.01" min="0"
                             class="form-control"
                             value="{{ optional($egreso)->gastos_administrativos ?? 800 }}"
-                            {{ $egreso ? 'disabled' : '' }}
+                            {{ ($egreso || $isFinalized) ? 'disabled' : '' }}
                             placeholder="Ingresa el monto de gastos administrativos">
                     </div>
                 </div>
@@ -198,7 +198,7 @@
             <!-- Botón de cálculo -->
             <div class="form-group">
                 <button type="button" id="calculateEgresosBtn" data-proyecto-id="{{ $proyectoId ?? '' }}"
-                    class="btn btn-primary btn-lg">
+                    class="btn btn-primary btn-lg" {{ $isFinalized ? 'disabled' : '' }}>
                     <i class="fa fa-calculator"></i> 
                     {{ $egreso ? 'Recalcular Egresos' : 'Calcular y Guardar Egresos' }}
                 </button>
@@ -242,9 +242,15 @@
 <!-- Botón Finalizar Proyecto -->
 <div class="box box-danger">
     <div class="box-body text-center">
+        @if(!$isFinalized)
         <button type="button" class="btn btn-danger btn-lg" data-toggle="modal" data-target="#finalizarModal">
             <i class="fa fa-stop"></i> Finalizar Proyecto
         </button>
+        @else
+        <button type="button" class="btn btn-danger btn-lg opacity-50 cursor-not-allowed" disabled>
+            <i class="fa fa-check-circle"></i> Proyecto Finalizado
+        </button>
+        @endif
     </div>
 </div>
 
@@ -522,6 +528,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (preMontoInicial) preMontoInicial.textContent = Number(montoInicial || 0).toFixed(2);
             if (preUtilidad) preUtilidad.textContent = fmt(utilidadFinal);
 
+            document.dispatchEvent(new CustomEvent('egresoSaved'));
+
             // reporte
             if (egresosReportBody) {
                 egresosReportBody.innerHTML = `
@@ -618,6 +626,73 @@ document.addEventListener('DOMContentLoaded', () => {
             doc.save(`Reporte_Egresos_{{ $proyectoId ?? 0 }}_${new Date().toISOString().split('T')[0]}.pdf`);
         });
     }
+
+    // === REAL-TIME UPDATES FOR RESUMEN PRELIMINAR ===
+    async function refreshEgresosPreliminar() {
+        console.log('[egresos] Refreshing preliminary summary...');
+        try {
+            const [budgetsRes, gastosRes] = await Promise.all([
+                fetch('{{ route("proyectos.budgets", $proyecto->id_proyecto) }}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } }),
+                fetch('{{ route("proyectos.gastos-extra.data", $proyecto->id_proyecto) }}', { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+            ]);
+
+            if (!budgetsRes.ok || !gastosRes.ok) throw new Error('Failed to fetch data');
+
+            const budgets = await budgetsRes.json();
+            const gastosData = await gastosRes.json();
+
+            // Helper to parse float from text, handling commas and ignoring non-numeric chars
+            const safeParse = (str) => {
+                if (!str) return 0;
+                // Remove commas first, then extract numbers and dots
+                const clean = str.toString().replace(/,/g, '');
+                const match = clean.match(/-?[\d\.]+/);
+                return match ? parseFloat(match[0]) : 0;
+            };
+
+            // Extract values
+            const rawPersonal = Number(budgets.personal?.spent || 0);
+            const mat = Number(budgets.materials?.spent || 0);
+            const serv = Number(budgets.services?.spent || 0);
+            
+            // Gastos Extra is sum of array [alim, hosp, pasajes]
+            const extraArr = gastosData.data || [0,0,0];
+            const extra = extraArr.reduce((a, b) => a + Number(b), 0);
+
+            // FIX: Subtract extra from personal to avoid double counting
+            // (API returns personal = planilla + extra, so we need to isolate planilla)
+            const realPersonal = Math.max(0, rawPersonal - extra);
+
+            // Update DOM
+            if (preMateriales) preMateriales.textContent = mat.toFixed(2);
+            if (prePlanilla) prePlanilla.textContent = realPersonal.toFixed(2);
+            if (preServicios) preServicios.textContent = serv.toFixed(2);
+            if (preGastosExtra) preGastosExtra.textContent = extra.toFixed(2);
+
+            // Recalculate Total and Utility
+            // Use safeParse to handle "0.00 (pendiente)"
+            const currentScr = safeParse(preScr?.textContent);
+            const currentAdmin = safeParse(preGastosAdmin?.textContent);
+            
+            const total = mat + realPersonal + serv + extra + currentScr + currentAdmin;
+            
+            if (preTotal) preTotal.textContent = total.toFixed(2);
+            
+            // Utility
+            // Use safeParse to handle "S/ 10,000.00" or similar formats
+            const inicial = safeParse(preMontoInicial?.textContent);
+            const utilidad = inicial - total;
+            if (preUtilidad) preUtilidad.textContent = fmt(utilidad);
+
+        } catch (err) {
+            console.error('[egresos] Error refreshing summary:', err);
+        }
+    }
+
+    // Listen for events
+    document.addEventListener('materialSaved', refreshEgresosPreliminar);
+    document.addEventListener('personalSaved', refreshEgresosPreliminar);
+    document.addEventListener('gastoSaved', refreshEgresosPreliminar);
 
     if (exportExcelBtn) {
         exportExcelBtn.addEventListener('click', () => {
