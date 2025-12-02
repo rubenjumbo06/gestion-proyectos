@@ -73,7 +73,7 @@
                         </thead>
                         <tbody id="trabajadores-table">
                             @foreach ($planilla as $planillaItem)
-                                <tr data-id="{{ $planillaItem->id_planilla }}">
+                                <tr data-id="{{ $planillaItem->id_planilla }}" data-trabajador-id="{{ $planillaItem->trabajador->id_trabajadores }}">
                                     <td>{{ $planillaItem->trabajador->nombre_trab }} {{ $planillaItem->trabajador->apellido_trab }}</td>
                                     <td class="text-right">S/{{ number_format($planillaItem->pago_dia ?? 0, 2) }}</td>
                                     <td class="text-center">{{ $planillaItem->dias_trabajados }}</td>
@@ -221,15 +221,15 @@
                     <input type="hidden" id="update_planilla_id" name="planilla_id">
                     <div class="form-group">
                         <label for="alimentacion_trabajador" class="font-semibold">Alimentación</label>
-                        <input type="number" step="0.01" id="alimentacion_trabajador" name="alimentacion_trabajador" class="form-control" placeholder="0.00" required>
+                        <input type="number" step="0.01" id="alimentacion_trabajador" name="alimentacion_trabajador" class="form-control" placeholder="0.00">
                     </div>
                     <div class="form-group">
                         <label for="hospedaje_trabajador" class="font-semibold">Hospedaje</label>
-                        <input type="number" step="0.01" id="hospedaje_trabajador" name="hospedaje_trabajador" class="form-control" placeholder="0.00" required>
+                        <input type="number" step="0.01" id="hospedaje_trabajador" name="hospedaje_trabajador" class="form-control" placeholder="0.00">
                     </div>
                     <div class="form-group">
                         <label for="pasajes_trabajador" class="font-semibold">Pasajes</label>
-                        <input type="number" step="0.01" id="pasajes_trabajador" name="pasajes_trabajador" class="form-control" placeholder="0.00" required>
+                        <input type="number" step="0.01" id="pasajes_trabajador" name="pasajes_trabajador" class="form-control" placeholder="0.00">
                     </div>
                     <div id="update-error-message" class="alert alert-danger hidden"></div>
                 </div>
@@ -295,21 +295,19 @@
 
 <!-- Modal de confirmación de eliminación -->
 <div class="modal fade" id="eliminar-modal" tabindex="-1" role="dialog" aria-labelledby="eliminar-modal-title" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered" role="document">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="eliminar-modal-title">Confirmar Eliminación</h5>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+    <div class="modal-dialog" role="document">
+        <div class="modal-content custom-modal">
+            <div class="modal-header bg-red">
+                <h4 class="modal-title text-white" id="eliminar-modal-title">Confirmar Eliminación</h4>
             </div>
             <div class="modal-body">
                 <p>¿Estás seguro de que deseas eliminar a este trabajador de la planilla?</p>
+                <p class="text-muted">Esta acción no se puede deshacer.</p>
                 <div id="delete-error-message" class="alert alert-danger hidden"></div>
             </div>
             <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
                 <button type="button" class="btn btn-danger" id="confirm-delete-btn">Eliminar</button>
+                <button type="button" class="btn btn-default" data-dismiss="modal">Cancelar</button>
             </div>
         </div>
     </div>
@@ -360,16 +358,21 @@
     // Actualizar presupuesto personal
     async function refreshBudgetPersonal() {
         try {
-            const res = await fetch(`${BASE}/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
-            if (!res.ok) throw new Error('No se pudo obtener presupuesto');
-            const data = await res.json();
-            const p = data.personal || { assigned: 0, spent: 0, remaining: 0 };
+            const p = await getBudgetPersonal();
             const a = document.getElementById('per-assigned');
             const s = document.getElementById('per-spent');
             const r = document.getElementById('per-remaining');
             if (a) a.textContent = Number(p.assigned).toFixed(2);
             if (s) s.textContent = Number(p.spent).toFixed(2);
             if (r) r.textContent = Number(p.remaining).toFixed(2);
+            
+            // Update worker count summary
+            const plazas = {{ $proyecto->cantidad_trabajadores }};
+            const workerCount = p.worker_count || 0;
+            const plazasOcupadasEl = document.getElementById('plazas-ocupadas');
+            const trabajadoresAdicionalesEl = document.getElementById('trabajadores-adicionales');
+            if (plazasOcupadasEl) plazasOcupadasEl.textContent = workerCount;
+            if (trabajadoresAdicionalesEl) trabajadoresAdicionalesEl.textContent = workerCount > plazas ? workerCount - plazas : 0;
         } catch (e) { console.error('[refreshBudgetPersonal] Error:', e); }
     }
 
@@ -378,7 +381,7 @@
         const res = await fetch(`${BASE}/api/proyectos/{{ $proyecto->id_proyecto }}/budgets`, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
         if (!res.ok) throw new Error('No se pudo obtener presupuesto');
         const data = await res.json();
-        return data && data.personal ? data.personal : { assigned: 0, spent: 0, remaining: 0 };
+        return data && data.personal ? data.personal : { assigned: 0, spent: 0, remaining: 0, worker_count: 0 };
     }
 
     // Actualizar resumen
@@ -400,9 +403,8 @@
         const existingIds = new Set(
             Array.from(document.querySelectorAll('#trabajadores-table tr'))
                 .map(row => {
-                    const id = row.getAttribute('data-id');
-                    const btn = row.querySelector('.open-update-modal');
-                    return btn ? parseInt(btn.dataset.planillaId) : null;
+                    const tid = row.getAttribute('data-trabajador-id');
+                    return tid ? parseInt(tid) : null;
                 })
                 .filter(id => id !== null)
         );
@@ -456,15 +458,16 @@
         if (Array.isArray(TRABAJADORES_PRELOAD) && TRABAJADORES_PRELOAD.length > 0) {
             const count = renderTrabajadoresOptions(select, TRABAJADORES_PRELOAD);
             console.log('[planilla] Opciones preload renderizadas:', count);
-            if (btnAdd) btnAdd.disabled = count <= 1;
-            if (count <= 1) {
+            if (btnAdd) btnAdd.disabled = count === 0;
+            if (count === 0) {
                 errorMessage.textContent = 'No hay trabajadores disponibles.';
                 errorMessage.classList.remove('hidden');
-            } else {
-                $('#trabajadores-modal').modal('show');
-                setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
-                return; // Evitar fetch si preload tiene datos
             }
+            $('#trabajadores-modal').modal('show');
+            if (count > 0) {
+                setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
+            }
+            return; // Evitar fetch si preload tiene datos
         } else {
             select.innerHTML = '<option value="" disabled selected>Cargando trabajadores...</option>';
             if (btnAdd) btnAdd.disabled = true;
@@ -499,14 +502,15 @@
             }
             const count = renderTrabajadoresOptions(select, lista);
             console.log('[planilla] Opciones renderizadas:', count);
-            if (btnAdd) btnAdd.disabled = count <= 1;
-            if (count <= 1) {
+            if (btnAdd) btnAdd.disabled = count === 0;
+            if (count === 0) {
                 errorMessage.textContent = 'No hay trabajadores disponibles.';
                 errorMessage.classList.remove('hidden');
-                return;
             }
             $('#trabajadores-modal').modal('show');
-            setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
+            if (count > 0) {
+                setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
+            }
         })
         .catch(async error => {
             console.error('Error carga trabajadores (primario):', error);
@@ -518,14 +522,15 @@
                     const lista = Array.isArray(all) ? all : (Array.isArray(all?.data) ? all.data : []);
                     const count = renderTrabajadoresOptions(select, lista);
                     console.log('[planilla] Opciones fallback renderizadas:', count);
-                    if (btnAdd) btnAdd.disabled = count <= 1;
-                    if (count <= 1) {
+                    if (btnAdd) btnAdd.disabled = count === 0;
+                    if (count === 0) {
                         errorMessage.textContent = 'No hay trabajadores disponibles.';
                         errorMessage.classList.remove('hidden');
-                        return;
                     }
                     $('#trabajadores-modal').modal('show');
-                    setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
+                    if (count > 0) {
+                        setTimeout(() => { try { select.focus(); } catch(e){} }, 50);
+                    }
                     return;
                 }
             } catch (e2) {
@@ -636,6 +641,7 @@
             if (table) {
                 const row = table.insertRow();
                 row.setAttribute('data-id', data.id);
+                row.setAttribute('data-trabajador-id', requestData.trabajador_id);
                 row.innerHTML = `
                     <td>${escapeHtml(data.nombre_completo)}</td>
                     <td class="text-right">S/${Number(data.pago_dia || 0).toFixed(2)}</td>
@@ -1305,6 +1311,8 @@
 
         initializeUpdateModalEvents();
         initializeDetailsModalEvents();
+        
+
 
         const addForm = document.getElementById('add-trabajador-form');
         if (addForm) {

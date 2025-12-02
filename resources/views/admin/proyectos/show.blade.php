@@ -278,14 +278,14 @@
                         const val = p[0].value;
                         return `
                             <div style="font-family: 'Poppins', sans-serif; padding: 4px;">
-                                <div style="font-weight: 600; color: #fff; margin-bottom: 4px;">${p[0].name}</div>
-                                <div style="color: #fbbf24;">S/ ${Number(val).toFixed(2)}</div>
+                                <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">${p[0].name}</div>
+                                <div style="color: #f59e0b;">S/ ${Number(val).toFixed(2)}</div>
                             </div>
                         `;
                     },
-                    backgroundColor: 'rgba(17, 24, 39, 0.9)',
-                    borderColor: '#374151',
-                    textStyle: { color: '#fff' },
+                    backgroundColor: '#ffffff',
+                    borderColor: '#e5e7eb',
+                    textStyle: { color: '#374151' },
                     padding: 12,
                     borderRadius: 8
                 },
@@ -370,7 +370,15 @@
         function buildEgresosOption(payload) {
             const { labels, data } = normalizeLabelsData(payload);
             return {
-                tooltip: { trigger: 'item', formatter: '{b}: S/{c} ({d}%)' },
+                tooltip: { 
+                    trigger: 'item', 
+                    formatter: '{b}: S/{c} ({d}%)',
+                    backgroundColor: '#ffffff',
+                    borderColor: '#e5e7eb',
+                    textStyle: { color: '#374151', fontFamily: 'Poppins, sans-serif' },
+                    padding: 10,
+                    borderRadius: 8
+                },
                 legend: { top: 5, left: 'center', orient: 'horizontal', textStyle: { fontSize: 11 } },
                 series: [{
                     type: 'pie',
@@ -395,7 +403,15 @@
                 return { name: l, value: safe(data[i], 0), itemStyle: { color: c } };
             });
             return {
-                tooltip: { trigger: 'item', formatter: '{b}: S/{c} ({d}%)' },
+                tooltip: { 
+                    trigger: 'item', 
+                    formatter: '{b}: S/{c} ({d}%)',
+                    backgroundColor: '#ffffff',
+                    borderColor: '#e5e7eb',
+                    textStyle: { color: '#374151', fontFamily: 'Poppins, sans-serif' },
+                    padding: 10,
+                    borderRadius: 8
+                },
                 series: [{ type: 'pie', radius: ['45%','70%'], label: { formatter: '{b}' }, data: datos }]
             };
         }
@@ -422,7 +438,12 @@
                     formatter: params => params
                         .filter(p => p.value != null)
                         .map(p => `${p.marker} ${p.seriesName}: <strong>S/ ${Math.abs(p.value).toFixed(2)}</strong>`)
-                        .join('<br>')
+                        .join('<br>'),
+                    backgroundColor: '#ffffff',
+                    borderColor: '#e5e7eb',
+                    textStyle: { color: '#374151', fontFamily: 'Poppins, sans-serif' },
+                    padding: 10,
+                    borderRadius: 8
                 },
                 legend: {
                     show: true,

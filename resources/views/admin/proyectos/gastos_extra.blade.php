@@ -198,17 +198,17 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="alimentacion_general" class="font-semibold">Alimentación General</label>
-                        <input type="number" step="0.01" id="alimentacion_general" name="alimentacion_general" class="form-control" placeholder="Ingresa el monto de alimentación general" required>
+                        <input type="number" step="0.01" id="alimentacion_general" name="alimentacion_general" class="form-control" placeholder="Ingresa el monto de alimentación general">
                         <span class="text-danger error-message" id="alimentacion_general_error"></span>
                     </div>
                     <div class="form-group">
                         <label for="hospedaje" class="font-semibold">Hospedaje</label>
-                        <input type="number" step="0.01" id="hospedaje" name="hospedaje" class="form-control" placeholder="Ingresa el monto de hospedaje" required>
+                        <input type="number" step="0.01" id="hospedaje" name="hospedaje" class="form-control" placeholder="Ingresa el monto de hospedaje">
                         <span class="text-danger error-message" id="hospedaje_error"></span>
                     </div>
                     <div class="form-group">
                         <label for="pasajes" class="font-semibold">Pasajes</label>
-                        <input type="number" step="0.01" id="pasajes" name="pasajes" class="form-control" placeholder="Ingresa el monto de pasajes" required>
+                        <input type="number" step="0.01" id="pasajes" name="pasajes" class="form-control" placeholder="Ingresa el monto de pasajes">
                         <span class="text-danger error-message" id="pasajes_error"></span>
                     </div>
                     <div id="error-message" class="alert alert-danger hidden"></div>
@@ -375,6 +375,8 @@ const GastosExtras = {
         });
 
         document.getElementById('confirm-delete-btn')?.addEventListener('click', () => this.delete());
+
+
     },
 
     async openModal(id = null) {

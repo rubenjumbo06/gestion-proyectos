@@ -2013,6 +2013,7 @@ class ProyectosController extends Controller
                 'assigned' => (float)($apartado->monto_operativos ?? 0),
                 'spent' => $personalGastado,
                 'remaining' => max(0, (float)($apartado->monto_operativos ?? 0) - $personalGastado),
+                'worker_count' => DB::table('planilla')->where('id_proyecto', $proyecto->id_proyecto)->whereNull('deleted_at')->count(),
             ],
             'services' => [
                 'assigned' => (float)($apartado->monto_servicios ?? 0),
