@@ -27,7 +27,12 @@
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border d-flex justify-content-between align-items-center">
-            <h3 class="box-title">Listado de Actividades</h3>
+            <h3 class="box-title">
+                <a href="{{ route('proyectos.show', $proyecto->id_proyecto) }}" class="btn btn-default btn-sm mr-2" style="margin-right: 10px;" title="Volver al Proyecto">
+                    <i class="fa fa-arrow-left"></i>
+                </a>
+                Listado de Actividades
+            </h3>
             <div class="flex justify-end space-x-1" style="margin-top: -10px;">
                 <a href="#" 
                    class="btn btn-primary {{ $isFinalized ? 'disabled' : '' }}" 

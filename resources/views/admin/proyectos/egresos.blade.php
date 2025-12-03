@@ -195,6 +195,32 @@
                 </div>
             </div>
 
+            <!-- Sección para mostrar Gastos Admin con iconos después de guardar -->
+            <div id="gastosAdminDisplayContainer" class="row {{ !$egreso ? 'hidden' : '' }}">
+                <div class="col-md-12">
+                    <div class="form-group">
+                        <label for="gastos_admin_display" class="control-label">Gastos Administrativos (S/)</label>
+                        <div class="input-group">
+                            <input type="number" id="gastos_admin_display" step="0.01" min="0"
+                                class="form-control"
+                                value="{{ optional($egreso)->gastos_administrativos ?? 800 }}"
+                                disabled
+                                placeholder="Monto de gastos administrativos">
+                            <span class="input-group-btn">
+                                <button type="button" id="editGastosAdminBtn" class="btn btn-warning" 
+                                    title="Editar monto" {{ $isFinalized ? 'disabled' : '' }}>
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" id="incrementGastosAdminBtn" class="btn btn-success" 
+                                    title="Incrementar monto" {{ $isFinalized ? 'disabled' : '' }}>
+                                    <i class="fas fa-plus"></i>
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Botón de cálculo -->
             <div class="form-group">
                 <button type="button" id="calculateEgresosBtn" data-proyecto-id="{{ $proyectoId ?? '' }}"
@@ -257,8 +283,8 @@
 <!-- Modal Finalización -->
 <div class="modal fade" id="finalizarModal" tabindex="-1" role="dialog" aria-labelledby="finalizarModalLabel">
     <div class="modal-dialog" role="document">
-        <div class="modal-content" style="border-radius: 16px;">
-            <div class="modal-header bg-red" style="border-radius: 16px 16px 0 0;">
+        <div class="modal-content custom-modal">
+            <div class="modal-header bg-red">
                 <h4 class="modal-title text-white" id="finalizarModalLabel">Confirmar Finalización</h4>
             </div>
             <div class="modal-body">
@@ -288,6 +314,74 @@
     </div>
 </div>
 
+<!-- Modal Editar Gastos Administrativos -->
+<div class="modal fade" id="editGastosAdminModal" tabindex="-1" role="dialog" aria-labelledby="editGastosAdminModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content custom-modal">
+            <div class="modal-header bg-orange">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title text-white" id="editGastosAdminModalLabel">
+                    Editar Gastos Administrativos
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <strong>Confirmación:</strong> ¿Deseas editar el monto de gastos administrativos?
+                </div>
+                <p>El campo se habilitará para que puedas modificar el valor actual.</p>
+                <p><strong>Monto actual:</strong> <span id="currentGastosAdminValue">S/0.00</span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button" id="confirmEditGastosAdmin" class="btn btn-primary">
+                    Sí, Editar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Incrementar Gastos Administrativos -->
+<div class="modal fade" id="incrementGastosAdminModal" tabindex="-1" role="dialog" aria-labelledby="incrementGastosAdminModalLabel">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content custom-modal">
+            <div class="modal-header bg-green">
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+                <h4 class="modal-title text-white" id="incrementGastosAdminModalLabel">
+                    Incrementar Gastos Administrativos
+                </h4>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    
+                    <strong>Confirmación:</strong> ¿Deseas incrementar el monto de gastos administrativos?
+                </div>
+                <p><strong>Monto actual:</strong> <span id="currentGastosAdminValueIncrement">S/0.00</span></p>
+                <div class="form-group">
+                    <label for="incrementAmount">Monto a agregar (S/):</label>
+                    <input type="number" id="incrementAmount" class="form-control" step="0.01" min="0" 
+                        placeholder="Ingresa el monto a sumar" value="0">
+                </div>
+                <p><strong>Nuevo total:</strong> <span id="newTotalGastosAdmin">S/0.00</span></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-default" data-dismiss="modal">
+                    Cancelar
+                </button>
+                <button type="button" id="confirmIncrementGastosAdmin" class="btn btn-success">
+                    Sí, Incrementar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- Librerías para export -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
@@ -298,6 +392,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const calculateBtn = document.getElementById('calculateEgresosBtn');
     const form = document.getElementById('egresosForm');
     const egresosInputsContainer = document.getElementById('egresosInputsContainer');
+    const gastosAdminDisplayContainer = document.getElementById('gastosAdminDisplayContainer');
     const errorMessage = document.getElementById('errorMessage');
 
     const preMateriales = document.getElementById('pre_materiales');
@@ -321,6 +416,17 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportPdfBtn = document.getElementById('exportPdfBtn');
     const exportExcelBtn = document.getElementById('exportExcelBtn');
 
+    // Nuevos elementos para editar/incrementar gastos admin
+    const editGastosAdminBtn = document.getElementById('editGastosAdminBtn');
+    const incrementGastosAdminBtn = document.getElementById('incrementGastosAdminBtn');
+    const gastosAdminDisplay = document.getElementById('gastos_admin_display');
+    const confirmEditGastosAdmin = document.getElementById('confirmEditGastosAdmin');
+    const confirmIncrementGastosAdmin = document.getElementById('confirmIncrementGastosAdmin');
+    const incrementAmountInput = document.getElementById('incrementAmount');
+    const currentGastosAdminValue = document.getElementById('currentGastosAdminValue');
+    const currentGastosAdminValueIncrement = document.getElementById('currentGastosAdminValueIncrement');
+    const newTotalGastosAdmin = document.getElementById('newTotalGastosAdmin');
+
     // Valores inyectados desde PHP
     const url = '{{ route("proyectos.calculate.egresos", $proyectoId ?? ($proyecto->id ?? 0)) }}';
     const token = '{{ csrf_token() }}';
@@ -338,9 +444,102 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const fmt = (n) => `S/${Number(n || 0).toFixed(2)}`;
 
+    // === EDIT GASTOS ADMIN LOGIC ===
+    if (editGastosAdminBtn) {
+        editGastosAdminBtn.addEventListener('click', () => {
+            const currentValue = parseFloat(gastosAdminDisplay.value) || 0;
+            if (currentGastosAdminValue) {
+                currentGastosAdminValue.textContent = fmt(currentValue);
+            }
+            $('#editGastosAdminModal').modal('show');
+        });
+    }
+
+    if (confirmEditGastosAdmin) {
+        confirmEditGastosAdmin.addEventListener('click', () => {
+            // Habilitar el campo para edición
+            if (gastosAdminDisplay) {
+                gastosAdminDisplay.removeAttribute('disabled');
+                gastosAdminDisplay.focus();
+                gastosAdminDisplay.select();
+            }
+            $('#editGastosAdminModal').modal('hide');
+            
+            // Mostrar mensaje informativo
+            if (errorMessage) {
+                errorMessage.classList.remove('alert-danger');
+                errorMessage.classList.add('alert-info');
+                errorMessage.textContent = 'Campo habilitado. Modifica el valor y haz clic en "Recalcular Egresos" para guardar los cambios.';
+                errorMessage.classList.remove('hidden');
+                
+                // Ocultar mensaje después de 5 segundos
+                setTimeout(() => {
+                    errorMessage.classList.add('hidden');
+                    errorMessage.classList.remove('alert-info');
+                    errorMessage.classList.add('alert-danger');
+                }, 5000);
+            }
+        });
+    }
+
+    // === INCREMENT GASTOS ADMIN LOGIC ===
+    if (incrementGastosAdminBtn) {
+        incrementGastosAdminBtn.addEventListener('click', () => {
+            const currentValue = parseFloat(gastosAdminDisplay.value) || 0;
+            if (currentGastosAdminValueIncrement) {
+                currentGastosAdminValueIncrement.textContent = fmt(currentValue);
+            }
+            if (incrementAmountInput) {
+                incrementAmountInput.value = '0';
+            }
+            if (newTotalGastosAdmin) {
+                newTotalGastosAdmin.textContent = fmt(currentValue);
+            }
+            $('#incrementGastosAdminModal').modal('show');
+        });
+    }
+
+    // Actualizar preview del nuevo total al cambiar el monto a incrementar
+    if (incrementAmountInput) {
+        incrementAmountInput.addEventListener('input', () => {
+            const currentValue = parseFloat(gastosAdminDisplay.value) || 0;
+            const incrementValue = parseFloat(incrementAmountInput.value) || 0;
+            const newTotal = currentValue + incrementValue;
+            if (newTotalGastosAdmin) {
+                newTotalGastosAdmin.textContent = fmt(newTotal);
+            }
+        });
+    }
+
+    if (confirmIncrementGastosAdmin) {
+        confirmIncrementGastosAdmin.addEventListener('click', () => {
+            const currentValue = parseFloat(gastosAdminDisplay.value) || 0;
+            const incrementValue = parseFloat(incrementAmountInput.value) || 0;
+            
+            if (incrementValue <= 0) {
+                alert('Por favor ingresa un monto válido mayor a 0 para incrementar.');
+                return;
+            }
+            
+            const newTotal = currentValue + incrementValue;
+            
+            // Actualizar el campo display
+            if (gastosAdminDisplay) {
+                gastosAdminDisplay.value = newTotal.toFixed(2);
+                gastosAdminDisplay.removeAttribute('disabled');
+            }
+            
+            $('#incrementGastosAdminModal').modal('hide');
+            
+            // Trigger recalculation automáticamente
+            handleCalculate();
+        });
+    }
+
     // Si hay registro persistido, mostrarlo
     if (existingEgresos) {
         if (egresosInputsContainer) egresosInputsContainer.classList.add('hidden');
+        if (gastosAdminDisplayContainer) gastosAdminDisplayContainer.classList.remove('hidden');
         if (calculateBtn) calculateBtn.textContent = 'Recalcular Egresos';
 
         // seteo preliminar con el registro persistido
@@ -435,8 +634,16 @@ document.addEventListener('DOMContentLoaded', () => {
         const scrInput = document.getElementById('scr');
         const gastosInput = document.getElementById('gastos_admin_mensual');
 
+        // Si estamos en modo "display" (después del primer guardado), usar el valor del display
+        let gastos_admin = 0;
+        // Priorizar el valor del display si el contenedor es visible, independientemente de si está deshabilitado
+        if (gastosAdminDisplayContainer && !gastosAdminDisplayContainer.classList.contains('hidden')) {
+            gastos_admin = parseFloat(gastosAdminDisplay.value) || 0;
+        } else if (gastosInput) {
+            gastos_admin = parseFloat(gastosInput.value) || 0;
+        }
+
         const scr = scrInput ? parseFloat(scrInput.value) || 0 : 0;
-        const gastos_admin = gastosInput ? parseFloat(gastosInput.value) || 0 : 0;
 
         if (errorMessage) { errorMessage.classList.add('hidden'); errorMessage.textContent = ''; }
         calculateBtn.disabled = true;
@@ -528,6 +735,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (preMontoInicial) preMontoInicial.textContent = Number(montoInicial || 0).toFixed(2);
             if (preUtilidad) preUtilidad.textContent = fmt(utilidadFinal);
 
+            // Actualizar el campo display con el nuevo valor
+            if (gastosAdminDisplay) {
+                gastosAdminDisplay.value = Number(ga).toFixed(2);
+                gastosAdminDisplay.setAttribute('disabled', 'disabled');
+            }
+
             document.dispatchEvent(new CustomEvent('egresoSaved'));
 
             // reporte
@@ -542,15 +755,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 initDragAndDrop();
             }
 
-            // bloquear inputs
+            // bloquear inputs originales y mostrar display
             if (scrInput) scrInput.setAttribute('disabled', 'disabled');
             if (gastosInput) gastosInput.setAttribute('disabled', 'disabled');
             if (egresosInputsContainer) egresosInputsContainer.classList.add('hidden');
+            if (gastosAdminDisplayContainer) gastosAdminDisplayContainer.classList.remove('hidden');
             if (calculateBtn) calculateBtn.textContent = 'Recalcular Egresos';
 
         } catch (err) {
             console.error('Error en calcular egresos:', err);
             if (errorMessage) {
+                errorMessage.classList.remove('alert-info');
+                errorMessage.classList.add('alert-danger');
                 errorMessage.textContent = 'Error: ' + (err.message || 'Ocurrió un error');
                 errorMessage.classList.remove('hidden');
             } else {
@@ -708,6 +924,109 @@ document.addEventListener('DOMContentLoaded', () => {
 
 @push('styles')
 <style>
+    /* Importar Poppins */
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap');
+
+    /* Global Font Override for Modals */
+    .modal * {
+        font-family: 'Poppins', sans-serif !important;
+    }
+
+    /* --- Custom Modal Styles (Premium Look) --- */
+    .custom-modal {
+        border-radius: 15px !important;
+        border: none !important;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.3) !important;
+        overflow: hidden;
+    }
+
+    .custom-modal .modal-header {
+        border-bottom: none;
+        padding: 1.5rem;
+        border-top-left-radius: 15px !important;
+        border-top-right-radius: 15px !important;
+        color: white !important; /* Ensure text is white on colored headers */
+    }
+
+    .custom-modal .modal-body {
+        padding: 2rem;
+        background-color: #fff;
+    }
+
+    .custom-modal .modal-footer {
+        border-top: none;
+        padding: 1.5rem;
+        background-color: #f8f9fa;
+        border-bottom-left-radius: 15px !important;
+        border-bottom-right-radius: 15px !important;
+    }
+
+    /* --- Modal Inputs & Buttons --- */
+    .modal .form-control {
+        border-radius: 2rem !important;
+        padding: 0.9rem 1.5rem !important;
+        font-size: 1.1rem !important;
+        line-height: 1.5 !important;
+        height: auto !important;
+        border: 2px solid #e9ecef !important;
+        transition: all 0.3s ease;
+    }
+
+    .modal .form-control:focus {
+        border-color: #3c8dbc !important;
+        box-shadow: 0 0 0 0.2rem rgba(60, 141, 188, 0.25) !important;
+    }
+
+    .modal label {
+        font-weight: 600 !important;
+        color: #444;
+        margin-bottom: 0.8rem !important;
+        font-size: 1.1rem !important;
+    }
+
+    .modal-title {
+        font-weight: 600 !important;
+        font-size: 1.5rem !important;
+    }
+
+    .modal .btn {
+        border-radius: 2rem !important;
+        padding: 0.6rem 1.5rem !important;
+        font-weight: 500 !important;
+        letter-spacing: 0.5px;
+        text-transform: uppercase;
+        font-size: 0.9rem !important;
+    }
+
+    /* --- Specific Header Colors --- */
+    /* Finalizar - Red */
+    #finalizarModal .modal-header,
+    .bg-red {
+        background-color: #dd4b39 !important;
+        color: white !important;
+    }
+
+    /* Editar - Yellow/Warning */
+    #editGastosAdminModal .modal-header,
+    .bg-warning {
+        background-color: #f39c12 !important;
+        color: white !important;
+    }
+
+    /* Incrementar - Green/Success */
+    #incrementGastosAdminModal .modal-header,
+    .bg-success {
+        background-color: #00a65a !important;
+        color: white !important;
+    }
+
+    /* Info - Blue */
+    .bg-info {
+        background-color: #00c0ef !important;
+        color: white !important;
+    }
+
+    /* --- General Page Styles --- */
     .form-control {
         border-radius: 2.5rem !important;
         border: 2px solid #ced4da !important;
@@ -790,39 +1109,35 @@ document.addEventListener('DOMContentLoaded', () => {
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     }
 
-    .modal-content {
-        border-radius: 8px;
-        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    .input-group-btn {
+        display: table-cell;
+        vertical-align: middle;
     }
 
-    .modal-header {
-        border-bottom: none;
-        border-radius: 8px 8px 0 0;
+    .input-group-btn .btn {
+        margin-left: 5px;
+        border-radius: 4px;
+        padding: 10px 15px;
+        transition: all 0.3s ease;
     }
 
-    .modal-footer {
-        border-top: none;
-        border-radius: 0 0 8px 8px;
+    .input-group-btn .btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
     }
 
-    .bg-warning {
-        background-color: #f39c12 !important;
-        color: white !important;
+    .input-group-btn .btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
     }
 
-    .bg-success {
-        background-color: #27ae60 !important;
-        color: white !important;
+    .input-group {
+        display: flex;
+        align-items: center;
     }
 
-    .bg-info {
-        background-color: #3498db !important;
-        color: white !important;
-    }
-
-    .bg-danger {
-        background-color: #e74c3c !important;
-        color: white !important;
+    .input-group .form-control {
+        flex: 1;
     }
 </style>
 @endpush

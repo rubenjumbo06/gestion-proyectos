@@ -27,10 +27,15 @@
 
     <!-- ENCABEZADO -->
     <div class="flex flex-col sm:flex-row items-center justify-between mb-6">
-        <div>
-            <h1 class="project-title">{{ $proyecto->nombre_proyecto }}</h1>
-            <p class="text-gray-600">Monto Inicial: S/ {{ number_format($proyecto->montopr->monto_inicial ?? 0, 2) }}</p>
-            <p class="text-gray-600">Cliente: {{ $proyecto->cliente_proyecto }}</p>
+        <div class="flex items-center">
+            <a href="{{ route('proyectos.index') }}" class="mr-4 text-gray-500 hover:text-gray-700 transition duration-150 ease-in-out" title="Volver a la lista">
+                <i class="fas fa-arrow-left fa-lg"></i>
+            </a>
+            <div>
+                <h1 class="project-title">{{ $proyecto->nombre_proyecto }}</h1>
+                <p class="text-gray-600">Monto Inicial: S/ {{ number_format($proyecto->montopr->monto_inicial ?? 0, 2) }}</p>
+                <p class="text-gray-600">Cliente: {{ $proyecto->cliente_proyecto }}</p>
+            </div>
         </div>
         <div class="flex space-x-3 mt-4 sm:mt-0">
             <button id="refreshChartsBtn" class="hidden bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-full flex items-center">
