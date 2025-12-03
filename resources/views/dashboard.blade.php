@@ -236,11 +236,76 @@
         const norm = normalizeLabelsData(payload, true);
         if (norm.error) return emptyBar('Error Materiales', norm.error);
         return {
-            title: { text: 'Monto por Material', left: 'center' },
-            tooltip: { trigger: 'axis', formatter: '{b}: S/{c}' },
-            xAxis: { type: 'category', data: norm.labels },
-            yAxis: { type: 'value' },
-            series: [{ data: norm.data, type: 'bar', itemStyle: { color: '#4A90E2' } }]
+            title: { text: 'Monto por Material', left: 'center', textStyle: { fontSize: 16, fontWeight: 'bold' } },
+            tooltip: {
+                trigger: 'axis',
+                axisPointer: { type: 'shadow' },
+                formatter: p => {
+                    const val = p[0].value;
+                    return `<div style="font-family: 'Poppins', sans-serif; padding: 4px;">
+                        <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">${p[0].name}</div>
+                        <div style="color: #3B82F6; font-weight: bold;">S/ ${Number(val).toFixed(2)}</div>
+                    </div>`;
+                },
+                backgroundColor: '#ffffff',
+                borderColor: '#e5e7eb',
+                textStyle: { color: '#374151' },
+                padding: 12,
+                borderRadius: 8
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                top: '12%',
+                containLabel: true
+            },
+            xAxis: {
+                type: 'category',
+                data: norm.labels,
+                axisLabel: {
+                    color: '#374151',
+                    fontSize: 11,
+                    interval: 0,
+                    rotate: norm.labels.length > 5 ? 45 : 0
+                },
+                axisTick: { show: false },
+                axisLine: { lineStyle: { color: '#D1D5DB' } }
+            },
+            yAxis: {
+                type: 'value',
+                axisLabel: {
+                    formatter: val => `S/ ${val >= 1000 ? (val/1000).toFixed(1) + 'k' : val}`,
+                    color: '#6B7280',
+                    fontSize: 11
+                },
+                splitLine: {
+                    lineStyle: { type: 'dashed', color: '#E5E7EB' }
+                }
+            },
+            series: [{
+                data: norm.data.map((v, i) => ({
+                    value: v,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+                            { offset: 0, color: '#3B82F6' },
+                            { offset: 1, color: '#60A5FA' }
+                        ]),
+                        borderRadius: [4, 4, 0, 0]
+                    }
+                })),
+                type: 'bar',
+                barMaxWidth: 50,
+                showBackground: true,
+                backgroundStyle: { color: '#F3F4F6', borderRadius: [4, 4, 0, 0] },
+                label: {
+                    show: norm.data.length <= 8,
+                    position: 'top',
+                    formatter: '{c}',
+                    fontSize: 10,
+                    color: '#374151'
+                }
+            }]
         };
     }
 
@@ -258,7 +323,7 @@
     function buildControlOption(balancePayload) {
         if (!balancePayload || balancePayload.error) return emptyPie('Error Control', balancePayload?.error || 'Sin Balance');
         const totalServicios = Number(balancePayload.total_servicios || balancePayload.monto_inicial || 0);
-        const egresos = Number(balancePayload.egresos || 0); // Monto gastado
+        const egresos = Number(balancePayload.total_egresos || 0); // Monto gastado - CORREGIDO: usar total_egresos
         const gananciaNeta = Number(balancePayload.ganancia_neta || (totalServicios - egresos)); // Utilidad restante
 
         // Asegurar valores no negativos
@@ -266,31 +331,62 @@
         const utilidadRestante = Math.max(0, gananciaNeta);
 
         return {
-            title: { text: 'Control de Gastos', left: 'center', textStyle: { fontSize: 16 } },
-            tooltip: { trigger: 'item', formatter: '{b}: S/{c} ({d}%)' },
-            legend: { orient: 'vertical', left: 'left', data: ['Gastado', 'Utilidad Restante'] },
+            title: {
+                text: 'Control de Gastos',
+                left: 'center',
+                textStyle: { fontSize: 16, fontWeight: 'bold', color: '#374151' }
+            },
+            tooltip: {
+                trigger: 'item',
+                formatter: p => `${p.marker} ${p.name}: <strong>S/ ${Number(p.value).toFixed(2)}</strong> (${p.percent}%)`,
+                backgroundColor: '#ffffff',
+                borderColor: '#e5e7eb',
+                textStyle: { color: '#374151', fontFamily: 'Poppins, sans-serif' },
+                padding: 12,
+                borderRadius: 8
+            },
+            legend: {
+                orient: 'vertical',
+                left: 'left',
+                top: 'center',
+                data: ['Gastado', 'Utilidad Restante'],
+                textStyle: { fontSize: 12, color: '#374151' }
+            },
             series: [{
                 name: 'Gastos',
                 type: 'pie',
-                radius: ['30%', '60%'],
+                radius: ['35%', '65%'],
+                center: ['60%', '50%'],
                 avoidLabelOverlap: false,
                 label: {
                     show: true,
-                    formatter: '{b}: S/{c}',
+                    formatter: params => `${params.name}\nS/ ${Number(params.value).toFixed(2)}`,
                     fontSize: 12,
-                    position: 'outside'
+                    position: 'outside',
+                    color: '#374151',
+                    fontWeight: 'bold'
                 },
-                emphasis: { label: { show: true, fontSize: 14 } },
+                labelLine: {
+                    show: true,
+                    length: 15,
+                    length2: 10
+                },
+                emphasis: {
+                    label: { show: true, fontSize: 14, fontWeight: 'bold' },
+                    itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
+                },
                 data: [
-                    { value: gastado, name: 'Gastado' },
-                    { value: utilidadRestante, name: 'Utilidad Restante' }
-                ],
-                itemStyle: {
-                    color: function(params) {
-                        const colors = ['#FF6384', '#36A2EB'];
-                        return colors[params.dataIndex % colors.length];
+                    {
+                        value: gastado,
+                        name: 'Gastado',
+                        itemStyle: { color: '#EF4444' }
+                    },
+                    {
+                        value: utilidadRestante,
+                        name: 'Utilidad Restante',
+                        itemStyle: { color: '#10B981' }
                     }
-                }
+                ]
             }]
         };
     }

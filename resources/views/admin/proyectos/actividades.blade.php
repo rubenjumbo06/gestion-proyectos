@@ -12,12 +12,29 @@
     </ol>
 </section>
 
+@php
+    $isFinalized = !empty($proyecto->fechapr->fecha_fin_true);
+@endphp
+
+@if($isFinalized)
+    <div class="alert alert-warning alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert">×</button>
+        <strong><i class="fa fa-exclamation-triangle"></i> Proyecto Finalizado</strong>
+        <p>Este proyecto ha sido finalizado el {{ \Carbon\Carbon::parse($proyecto->fechapr->fecha_fin_true)->format('d/m/Y') }}. No se pueden agregar nuevas actividades.</p>
+    </div>
+@endif
+
 <section class="content">
     <div class="box box-primary">
         <div class="box-header with-border d-flex justify-content-between align-items-center">
             <h3 class="box-title">Listado de Actividades</h3>
             <div class="flex justify-end space-x-1" style="margin-top: -10px;">
-                <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#modalAgregarActividad">
+                <a href="#" 
+                   class="btn btn-primary {{ $isFinalized ? 'disabled' : '' }}" 
+                   data-toggle="modal" 
+                   data-target="{{ $isFinalized ? '' : '#modalAgregarActividad' }}"
+                   {{ $isFinalized ? 'disabled' : '' }}
+                   onclick="{{ $isFinalized ? 'return false;' : '' }}">
                     <i class="fa fa-plus"></i> Agregar Actividad
                 </a>
             </div>
@@ -69,16 +86,19 @@
 
                                     <div class="d-flex justify-content-end gap-1 mt-2">
                                         @can('update', $actividad)
-                                            <a href="{{ route('proyectos.actividades.edit', [$proyecto->id_proyecto, $actividad->id_actividad]) }}" 
-                                               class="btn btn-sm btn-outline-primary">Editar</a>
+                                            <a href="{{ $isFinalized ? '#' : route('proyectos.actividades.edit', [$proyecto->id_proyecto, $actividad->id_actividad]) }}" 
+                                               class="btn btn-sm btn-outline-primary {{ $isFinalized ? 'disabled' : '' }}"
+                                               {{ $isFinalized ? 'disabled onclick="return false;"' : '' }}>Editar</a>
                                         @endcan
                                         @can('delete', $actividad)
                                             <form action="{{ route('proyectos.actividades.destroy', [$proyecto->id_proyecto, $actividad->id_actividad]) }}" 
                                                   method="POST" 
-                                                  onsubmit="return confirm('¿Eliminar esta actividad?');">
+                                                  onsubmit="return {{ $isFinalized ? 'false' : 'confirm(\'¿Eliminar esta actividad?\')' }};">
                                                 @csrf
                                                 @method('DELETE')
-                                                <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
+                                                <button type="submit" 
+                                                        class="btn btn-sm btn-outline-danger {{ $isFinalized ? 'disabled' : '' }}"
+                                                        {{ $isFinalized ? 'disabled' : '' }}>Eliminar</button>
                                             </form>
                                         @endcan
                                     </div>
