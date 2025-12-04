@@ -6,8 +6,8 @@
 <section class="content-header">
     <h1>Actividades del Proyecto <small>{{ $proyecto->nombre }}</small></h1>
     <ol class="breadcrumb">
-        <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
-        <li><a href="{{ route('proyectos.index') }}">Proyectos</a></li>
+        <li><a href="{{ URL::withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a href="{{ URL::withTabToken(route('proyectos.index')) }}">Proyectos</a></li>
         <li class="active">Actividades</li>
     </ol>
 </section>
@@ -28,7 +28,7 @@
     <div class="box box-primary">
         <div class="box-header with-border d-flex justify-content-between align-items-center">
             <h3 class="box-title">
-                <a href="{{ route('proyectos.show', $proyecto->id_proyecto) }}" class="btn btn-default btn-sm mr-2" style="margin-right: 10px;" title="Volver al Proyecto">
+                <a href="{{ URL::withTabToken(route('proyectos.show', $proyecto->id_proyecto)) }}" class="btn btn-default btn-sm mr-2" style="margin-right: 10px;" title="Volver al Proyecto">
                     <i class="fa fa-arrow-left"></i>
                 </a>
                 Listado de Actividades
@@ -65,49 +65,56 @@
             @else
                 <div class="row">
                     @foreach($actividades as $actividad)
-                        <div class="col-md-4">
-                            <div class="box box-solid box-default position-relative">
-                                <div class="box-body p-3">
-                                    <div class="d-flex align-items-center mb-2">
-                                        <i class="fa fa-check text-success mr-2"></i>
-                                        <p class="text-black mb-0">{{ $actividad->nombre }}</p>
+                      <div class="col-md-4 mb-4">
+                            <!-- TARJETA CON group y position-relative -->
+                            <div class="box box-solid box-default position-relative group bg-white rounded-lg shadow hover:shadow-2xl transition-all duration-300 overflow-hidden" style="min-height: 300px;">
+                                
+                                <!-- Contenido -->
+                                <div class="p-4">
+                                    <div class="flex items-center mb-3">
+                                        <i class="fa fa-check text-success mr-3 text-lg"></i>
+                                        <h5 class="font-bold text-lg text-gray-800 mb-0">{{ $actividad->nombre }}</h5>
                                     </div>
 
-                                    <p class="text-muted mb-0 mt-1">
-                                        <small><i class="fa fa-calendar"></i> {{ \Carbon\Carbon::parse($actividad->fecha_actividad)->format('d/m/Y') }}</small>
+                                    <p class="text-muted text-sm mb-3">
+                                        <i class="fa fa-calendar mr-2"></i>
+                                        {{ \Carbon\Carbon::parse($actividad->fecha_actividad)->format('d/m/Y') }}
                                     </p>
 
                                     @if($actividad->imagen_url)
-                                        <div class="mb-2 text-center">
+                                        <div class="text-center mb-4">
                                             <img src="{{ $actividad->imagen_url }}" 
-                                                 alt="Imagen de actividad"
-                                                 class="img-thumbnail"
-                                                 style="max-height:180px; width:auto; object-fit:cover; cursor:pointer;"
-                                                 onclick="window.open('{{ $actividad->imagen_url }}','_blank')">
+                                                 class="img-thumbnail rounded mx-auto d-block cursor-pointer"
+                                                 style="max-height: 180px; object-fit: cover;"
+                                                 onclick="window.open('{{ $actividad->imagen_url }}', '_blank')">
                                         </div>
                                     @endif
 
-                                    <p class="text-justify">{{ $actividad->descripcion }}</p>
-
-                                    <div class="d-flex justify-content-end gap-1 mt-2">
-                                        @can('update', $actividad)
-                                            <a href="{{ $isFinalized ? '#' : route('proyectos.actividades.edit', [$proyecto->id_proyecto, $actividad->id_actividad]) }}" 
-                                               class="btn btn-sm btn-outline-primary {{ $isFinalized ? 'disabled' : '' }}"
-                                               {{ $isFinalized ? 'disabled onclick="return false;"' : '' }}>Editar</a>
-                                        @endcan
-                                        @can('delete', $actividad)
-                                            <form action="{{ route('proyectos.actividades.destroy', [$proyecto->id_proyecto, $actividad->id_actividad]) }}" 
-                                                  method="POST" 
-                                                  onsubmit="return {{ $isFinalized ? 'false' : 'confirm(\'¿Eliminar esta actividad?\')' }};">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" 
-                                                        class="btn btn-sm btn-outline-danger {{ $isFinalized ? 'disabled' : '' }}"
-                                                        {{ $isFinalized ? 'disabled' : '' }}>Eliminar</button>
-                                            </form>
-                                        @endcan
-                                    </div>
+                                    <p class="text-gray-700 text-justify text-sm leading-relaxed">
+                                        {{ $actividad->descripcion }}
+                                    </p>
                                 </div>
+                                <!-- BOTONES EDITAR / ELIMINAR MOSTRADOS POR HOVER -->
+<div class="absolute top-2 right-3 z-30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex space-x-2">
+
+    <button class="btn btn-warning btn-sm"
+            onclick='abrirModalEditar({!! $actividad->toJson() !!});'>
+        <i class="fa fa-edit"></i>
+    </button>
+
+    <form action="{{ route('proyectos.actividades.destroy', [$proyecto->id_proyecto, $actividad->id_actividad]) }}"
+          method="POST">
+        @csrf
+        @method('DELETE')
+        <button class="btn btn-danger btn-sm"
+                onclick="return confirm('¿Eliminar actividad?')">
+            <i class="fa fa-trash"></i>
+        </button>
+    </form>
+
+</div>
+
+                                <!-- FIN 3 PUNTOS -->
                             </div>
                         </div>
                     @endforeach
@@ -161,6 +168,83 @@
         </form>
     </div>
 </div>
+<!-- Modal EDITAR Actividad (estilo igual al modal azul de proyecto) -->
+<div class="modal fade" id="modalEditarActividad" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-lg" role="document">
+
+        <div class="modal-content project-modal">
+
+            <form id="formEditarActividad" method="POST" enctype="multipart/form-data">
+                @csrf
+                @method('PUT')
+
+                <!-- HEADER AZUL -->
+                <div class="project-modal-header">
+                    <h4 class="project-modal-title w-100 text-center">
+                        Editar Actividad
+                    </h4>
+                </div>
+
+                <!-- CUERPO -->
+                <div class="project-modal-body">
+
+                    <!-- Título -->
+                    <div class="project-form-group">
+                        <label class="project-label">Título de la Actividad</label>
+                        <input type="text" class="project-input" id="edit_nombre" name="nombre" required>
+                    </div>
+
+                    <!-- Descripción -->
+                    <div class="project-form-group">
+                        <label class="project-label">Descripción</label>
+                        <textarea class="project-input" id="edit_descripcion" name="descripcion"
+                                  rows="4" required></textarea>
+                    </div>
+
+                    <!-- Fecha -->
+                    <div class="project-form-group">
+                        <label class="project-label">Fecha de Actividad</label>
+                        <input type="date" class="project-input" id="edit_fecha_actividad"
+                               name="fecha_actividad" required>
+                    </div>
+                    <!-- Nueva imagen -->
+                    <div class="project-form-group">
+                        <label class="project-label">Cambiar imagen (opcional)</label>
+
+                        <div class="relative custom-file-input">
+                            <input type="file" id="edit_imagen" name="imagen"
+                                   accept=".jpg,.jpeg,.png" class="hidden-input">
+
+                            <div class="file-input-display project-input flex items-center justify-between"
+                                 data-placeholder="Elige nueva imagen">
+                                <span id="editFileName">Elige nueva imagen</span>
+                                <button type="button" id="clearEditFile"
+                                        class="text-red-500 hover:text-red-700 hidden">✕</button>
+                            </div>
+
+                            <span class="absolute right-6 top-1/2 transform -translate-y-1/2 text-gray-500">
+                                <i class="fa fa-image"></i>
+                            </span>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- FOOTER PEGADO ABAJO -->
+                <div class="project-modal-footer" style="position: sticky; bottom: 0; background: white; padding: 10px; border-top: 1px solid #ddd;">
+                    <button type="submit" class="project-btn project-btn-primary">
+                        Actualizar Actividad
+                    </button>
+                    <button type="button" class="project-btn project-btn-default" data-dismiss="modal">
+                        Cancelar
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+    </div>
+</div>
 
 @endsection
 
@@ -205,10 +289,6 @@
         box-shadow: 0 5px 15px rgba(0,0,0,0.2);
     }
 
-    .modal-dialog {
-        max-width: 480px !important;
-    }
-
     .error-message {
         font-size: 0.9rem !important;
         margin-top: 0.3rem !important;
@@ -242,10 +322,44 @@
     .dropdown:hover .dropdown-menu {
         display: block;
     }
+    .group .btn { opacity: 0; }
+.group:hover .btn { opacity: 1; }
+
 
     .dropdown.show .dropdown-menu {
         display: block;
     }
+       .project-modal-body {
+        max-height: 70px !important;   /* Altura máxima del contenido */
+        overflow-y: auto !important;   /* Activa scroll vertical */
+        padding-right: 12px !important;
+        margin-right: -6px !important; /* Evita que se corte el scroll */
+        scrollbar-width: thin;         /* Scroll delgado (Firefox) */
+    }
+
+    /* Scroll bonito para Chrome y Edge */
+    .project-modal-body::-webkit-scrollbar {
+        width: 6px;
+    }
+    .project-modal-body::-webkit-scrollbar-thumb {
+        background: #b5b5b5;
+        border-radius: 4px;
+    }
+    /* Forzar que el modal tenga una altura limitada */
+#modalEditarActividad .modal-dialog {
+    width: 900px !important;
+    max-width: 900px !important;
+}
+
+
+#modalEditarActividad .project-modal-body {
+    max-height: 70vh !important;
+    overflow-y: auto !important;
+    padding-right: 12px !important;
+    margin-right: -6px !important;
+}
+
+
 </style>
 @endpush
 
@@ -307,5 +421,47 @@
             });
         }
     });
+  // Función abrir modal editar (sin cambios)
+function abrirModalEditar(actividad) {
+    $('#modalEditarActividad').modal('show');
+    $('#edit_actividad_id').val(actividad.id_actividad);
+    $('#edit_nombre').val(actividad.nombre);
+    $('#edit_descripcion').val(actividad.descripcion);
+    $('#edit_fecha_actividad').val(actividad.fecha_actividad.substring(0,10));
+
+    const ruta = "{{ route('proyectos.actividades.update', ['proyecto' => $proyecto->id_proyecto, 'actividad' => 'ID']) }}".replace('ID', actividad.id_actividad);
+    $('#formEditarActividad').attr('action', ruta);
+
+    $('#edit_imagen').val('');
+    $('#editFileName').text('Elige nueva imagen');
+}
+    // Limpiar nombre de archivo al seleccionar uno nuevo (opcional, mejora UX)
+    document.getElementById('edit_imagen').addEventListener('change', function(e) {
+        const fileName = e.target.files[0] ? e.target.files[0].name : 'Elige nueva imagen';
+        document.getElementById('editFileName').textContent = fileName;
+    });
+
+  function toggleMenu(e, menuId) {
+    e.stopPropagation();
+    const menu = document.getElementById(menuId);
+
+    // Cerrar todos los demás menús
+    document.querySelectorAll('[id^="menu-actividad-"]').forEach(m => {
+        if (m.id !== menuId) m.classList.add('hidden');
+    });
+
+    // Toggle del actual
+    menu.classList.toggle('hidden');
+}
+
+// Cerrar menús al hacer clic fuera
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('button[onclick^="toggleMenu"]') && 
+        !e.target.closest('[id^="menu-actividad-"]')) {
+        document.querySelectorAll('[id^="menu-actividad-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+});
 </script>
 @endpush

@@ -28,7 +28,7 @@
     <!-- ENCABEZADO -->
     <div class="flex flex-col sm:flex-row items-center justify-between mb-6">
         <div class="flex items-center">
-            <a href="{{ route('proyectos.index') }}" class="mr-4 text-gray-500 hover:text-gray-700 transition duration-150 ease-in-out" title="Volver a la lista">
+            <a href="{{ URL::withTabToken(route('proyectos.index')) }}" class="mr-4 text-gray-500 hover:text-gray-700 transition duration-150 ease-in-out" title="Volver a la lista">
                 <i class="fas fa-arrow-left fa-lg"></i>
             </a>
             <div>
@@ -41,7 +41,7 @@
             <button id="refreshChartsBtn" class="hidden bg-green-500 hover:bg-green-600 text-white px-8 py-2 rounded-full flex items-center">
                 <i class="fas fa-sync-alt mr-2"></i> Actualizar Gráficos
             </button>
-            <a href="{{ route('proyectos.actividades.index', ['proyecto' => $proyecto->id_proyecto]) }}" 
+            <a href="{{ URL::withTabToken(route('proyectos.actividades.index', ['proyecto' => $proyecto->id_proyecto])) }}" 
                class="bg-purple-500 hover:bg-purple-600 text-white px-8 py-2 rounded-full flex items-center">
                 <i class="fas fa-tasks mr-2"></i> Ver Actividades
             </a>

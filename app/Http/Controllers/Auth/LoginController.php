@@ -8,35 +8,18 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\URL;
 
 class LoginController extends Controller
 {
     public function showLoginForm(Request $request)
     {
-        if (auth()->check()) {
-            // Logout completo si sesión activa
-            \Log::info('Sesión activa detectada en showLoginForm, iniciando logout automático', ['user_id' => auth()->id() ?? 'none']);
-            Auth::guard('web')->logout();
-            $request->session()->invalidate();
-            $request->session()->regenerateToken();
-            \Session::forget('oauth_token'); // Para Google
-            \Session::save();
-            \Log::info('Logout automático completado en showLoginForm');
-
-            // Redirige a sí mismo para forzar un nuevo load fresco con token CSRF nuevo
-            return redirect()->route('login.form')
-                ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
-                ->header('Pragma', 'no-cache')
-                ->header('Expires', '0');
-                // Eliminado: ->header('Clear-Site-Data', '"cache", "cookies", "storage"');
-        }
-
-        // Si no autenticado, devuelve la vista directamente con headers anti-caché
+        // Siempre mostramos la vista de login SIN cerrar sesión global.
+        // Esto permite que otra pestaña se quede en login sin afectar la pestaña principal.
         return response()->view('auth.login')
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0')
             ->header('Pragma', 'no-cache')
             ->header('Expires', '0');
-            // Eliminado: ->header('Clear-Site-Data', '"cache", "cookies", "storage"');
     }
 
     public function login(Request $request)
@@ -51,7 +34,6 @@ class LoginController extends Controller
         // Verifica si el email está autorizado
         $allowedUser = AllowedUser::where('email', $email)->first();
         if (!$allowedUser || !$allowedUser->is_active) {
-            \Log::warning('Intento de login no autorizado', ['email' => $email]);
             return redirect()->route('login')->withErrors(['login' => 'Este correo no tiene acceso autorizado o está desactivado.']);
         }
 
@@ -59,11 +41,27 @@ class LoginController extends Controller
 
         if (Auth::attempt(['email' => $email, 'password' => $credentials['password']])) {
             $request->session()->regenerate();
-            \Log::info('Login exitoso', ['user_id' => auth()->id()]);
-            return redirect()->intended(route('dashboard'));
+
+            $token = bin2hex(random_bytes(32));
+            session(["tab_token_" . auth()->id() => $token]);
+
+            // Redirigir SIEMPRE con token en la URL desde el inicio
+            return redirect()->to(URL::withTabToken('dashboard'));
         }
 
         return redirect()->route('login')->withErrors(['login' => 'Credenciales incorrectas.']);
+    }
+    protected function authenticated(Request $request, $user)
+    {
+        $intended = session('intended_url');
+        session()->forget('intended_url');
+
+        // Siempre generamos/actualizamos token al salir del flujo de autenticación
+        $token = bin2hex(random_bytes(32));
+        session(["tab_token_" . $user->id => $token]);
+
+        // Si había URL previa, podrías adaptarlo; por simplicidad mandamos siempre al dashboard con token
+        return redirect()->to(URL::withTabToken('dashboard'));
     }
 
     public function showChangePasswordForm()

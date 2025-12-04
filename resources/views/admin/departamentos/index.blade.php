@@ -6,7 +6,7 @@
 <section class="content-header">
     <h1>Departamentos <small>Controla la información de los departamentos</small></h1>
     <ol class="breadcrumb">
-        <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a href="{{ URL::withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
         <li class="active">Departamentos</li>
     </ol>
 </section>
@@ -17,8 +17,8 @@
             <h3 class="box-title">Lista de Departamentos</h3>
             <div class="flex justify-end space-x-2">
                 @if(Auth::check() && Auth::user()->puede_descargar)
-                    <a href="{{ route('departamentos.export.pdf') }}" class="btn btn-danger">Exportar a PDF</a>
-                    <a href="{{ route('departamentos.export.excel') }}" class="btn btn-success">Exportar a Excel</a>
+                    <a href="{{ URL::withTabToken(route('departamentos.export.pdf')) }}" class="btn btn-danger">Exportar a PDF</a>
+                    <a href="{{ URL::withTabToken(route('departamentos.export.excel')) }}" class="btn btn-success">Exportar a Excel</a>
                 @endif
                 @if(Auth::check() && Auth::user()->puede_agregar)
                     <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#addDepartamentoModal">Agregar Departamento</a>
@@ -54,6 +54,7 @@
                     <div class="modal-content custom-modal">
                         <form action="{{ route('departamentos.store') }}" method="POST" id="addDepartamentoForm">
                             @csrf
+                            <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                             <div class="modal-header bg-primary">
                                 <h4 class="modal-title text-white" id="addDepartamentoModalLabel">Añadir Nuevo Departamento</h4>
                             </div>
@@ -102,6 +103,7 @@
                                     <form action="{{ route('departamentos.destroy', $departamento) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este departamento?');" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
+                                        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                         <button type="submit" class="btn btn-danger btn-xs"><i class="fa fa-trash"></i></button>
                                     </form>
                                 @endif
@@ -139,6 +141,7 @@
                                     <form action="{{ route('departamentos.update', $departamento) }}" method="POST" id="editDepartamentoForm{{ $departamento->id_departamento }}">
                                         @csrf
                                         @method('PUT')
+                                        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                         <div class="modal-header bg-primary">
                                             <h4 class="modal-title text-white" id="editDepartamentoModalLabel{{ $departamento->id_departamento }}">Editar Departamento</h4>
                                         </div>

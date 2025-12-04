@@ -10,7 +10,7 @@
 <section class="content-header">
     <h1>Proyectos <small>Controla la información de los proyectos</small></h1>
     <ol class="breadcrumb">
-        <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a href="{{ url()->withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
         <li class="active">Proyectos</li>
     </ol>
 </section>
@@ -51,40 +51,77 @@
     @endif
 
    <!-- Cuadrícula de proyectos (solo 4 más recientes) -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 font-poppins">
-        @forelse ($allProyectos->sortByDesc('fecha_creacion')->take(4) as $proyecto)
-            <div class="project-box">
-                <!-- Ícono de carpeta y nombre -->
-                <a href="{{ route('proyectos.show', $proyecto) }}" class="project-card-link flex items-center space-x-3 flex-1 min-w-0">
-                    <i class="fas fa-folder text-yellow-500 text-4xl flex-shrink-0"></i>
-                    <span class="project-name text-lg font-medium text-gray-800 truncate" 
-                        title="{{ $proyecto->nombre_proyecto }}">
-                        {{ $proyecto->nombre_proyecto }}
-                    </span>
-                </a>
-                <!-- Menú contextual -->
-                <div class="project-context-menu">
-                    <button class="project-context-btn" onclick="toggleContextMenu('context-menu-{{ $proyecto->id_proyecto }}')">
-                        <i class="fas fa-ellipsis-v"></i>
-                    </button>
-                    <div id="context-menu-{{ $proyecto->id_proyecto }}" class="hidden project-dropdown">
-                        <a href="{{ route('proyectos.show', $proyecto) }}" class="project-dropdown-item">Ver</a>
-                        <a href="#" class="project-dropdown-item" data-toggle="modal" data-target="#editProyectoModal{{ $proyecto->id_proyecto }}">Editar</a>
-                        <form action="{{ route('proyectos.destroy', $proyecto) }}" method="POST">
-                            @csrf
-                            @method('DELETE')
-                            <button type="submit" class="project-dropdown-item project-dropdown-danger" onclick="return confirm('¿Seguro que deseas eliminar este proyecto?')">Eliminar</button>
+    <!-- Cuadrícula de proyectos (los 4 más recientes) -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 p-4">
+    @forelse ($allProyectos->sortByDesc('fecha_creacion')->take(4) as $proyecto)
+        <div class="relative bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 border border-gray-200 overflow-visible group">
+            
+            <!-- Área clicleable (solo el contenido principal) -->
+            <a href="{{ url()->withTabToken(route('proyectos.show', $proyecto)) }}" 
+               class="block p-6 cursor-pointer">
+                <div class="flex items-start space-x-4">
+                    <div class="flex-shrink-0 mt-1">
+                        <i class="fas fa-folder text-yellow-500 text-5xl"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <h3 class="text-xl font-semibold text-gray-800 truncate" title="{{ $proyecto->nombre_proyecto }}">
+                            {{ $proyecto->nombre_proyecto }}
+                        </h3>
+                        <p class="text-sm text-gray-600 mt-1">{{ $proyecto->cliente_proyecto }}</p>
+                        <p class="text-xs text-gray-400 mt-3">
+                            Creado: {{ $proyecto->fecha_creacion?->format('d/m/Y') ?? 'Sin fecha' }}
+                        </p>
+                    </div>
+                </div>
+            </a>
+
+            <!-- Botón de 3 puntos (FUERA del enlace) -->
+            <div class="absolute top-4 right-4 z-10">
+                <button 
+                    type="button"
+                    onclick="toggleMenu(event, 'menu-{{ $proyecto->id_proyecto }}')"
+                    class="p-3 rounded-full bg-white shadow-md hover:bg-gray-100 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100">
+                    <i class="fas fa-ellipsis-v text-gray-600"></i>
+                </button>
+
+                <!-- Dropdown (sale por fuera de la tarjeta) -->
+                <div id="menu-{{ $proyecto->id_proyecto }}" 
+                     class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl border border-gray-200 hidden z-50 overflow-hidden">
+                    <div class="py-2">
+                        <a href="{{ url()->withTabToken(route('proyectos.show', $proyecto)) }}" 
+                           class="flex items-center px-5 py-3 text-gray-700 hover:bg-gray-50 transition">
+                            <i class="fas fa-eye mr-3 text-blue-600"></i>
+                            Ver proyecto
+                        </a>
+                        <button type="button"
+        data-toggle="modal" 
+        data-target="#editProyectoModal{{ $proyecto->id_proyecto }}"
+        class="w-full text-left flex items-center px-5 py-3 text-gray-700 hover:bg-gray-50 transition">
+    <i class="fas fa-edit mr-3 text-amber-600"></i>
+    Editar
+</button>
+                        <div class="border-t border-gray-200 my-1"></div>
+                        <form action="{{ route('proyectos.destroy', $proyecto) }}" method="POST" class="m-0">
+                            @csrf @method('DELETE')
+                            <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
+                            <button type="submit" 
+                                    onclick="return confirm('¿Seguro que quieres eliminar este proyecto?')"
+                                    class="w-full flex items-center px-5 py-3 text-red-600 hover:bg-red-50 transition">
+                                <i class="fas fa-trash-alt mr-3"></i>
+                                Eliminar proyecto
+                            </button>
                         </form>
                     </div>
                 </div>
             </div>
-        @empty
-            <div class="col-span-full text-center text-gray-500 py-4">
-                No hay proyectos registrados.
-            </div>
-        @endforelse
-    </div>
-
+        </div>
+    @empty
+        <div class="col-span-full text-center py-16">
+            <i class="fas fa-folder-open text-8xl text-gray-200 mb-6"></i>
+            <p class="text-xl text-gray-500">Aún no hay proyectos creados</p>
+        </div>
+    @endforelse
+</div>
     <!-- Nueva sección para tabla -->
         <div class="mt-8">
             <h3 class="project-title text-xl font-semibold mb-6">Todos los proyectos</h3>
@@ -102,7 +139,7 @@
                     <tbody id="projectsTableBody">
                         @foreach ($proyectos as $proyecto)
                             <tr class="hover:bg-gray-100 border-t">
-                                <td class="px-6 py-3 border"><a href="{{ route('proyectos.show', $proyecto) }}" class="text-blue-600 hover:underline">{{ $proyecto->nombre_proyecto }}</a></td>
+                                <td class="px-6 py-3 border"><a href="{{ url()->withTabToken(route('proyectos.show', $proyecto)) }}" class="text-blue-600 hover:underline">{{ $proyecto->nombre_proyecto }}</a></td>
                                 <td class="px-6 py-3 border">{{ $proyecto->cliente_proyecto }}</td>
                                 <td class="px-6 py-3 border">{{ $proyecto->fecha_creacion ? $proyecto->fecha_creacion->format('d/m/Y H:i') : 'N/A' }}</td>
                                 <td class="px-6 py-3 border">
@@ -126,6 +163,7 @@
         <div class="modal-content project-modal">
             <form action="{{ route('proyectos.store') }}" method="POST" id="addProyectoForm">
                 @csrf
+                <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                 <div class="project-modal-header">
                     <h4 class="project-modal-title" id="addProyectoModalLabel">Añadir Nuevo Proyecto</h4>
                 </div>
@@ -214,6 +252,7 @@
             <form action="{{ route('proyectos.update', $proyecto) }}" method="POST" id="editProyectoForm{{ $proyecto->id_proyecto }}">
                 @csrf
                 @method('PUT')
+                <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                 <div class="project-modal-header">
                     <h4 class="project-modal-title" id="editProyectoModalLabel{{ $proyecto->id_proyecto }}">
                         Editar Proyecto: {{ $proyecto->nombre_proyecto }}
@@ -308,171 +347,151 @@
 </div>
 @endforeach
 <!-- Script para manejar el menú contextual, validación y búsqueda -->
-<script>
-    function toggleContextMenu(menuId) {
-        const menu = document.getElementById(menuId);
-        const isHidden = menu.classList.contains('hidden');
-        document.querySelectorAll('[id^="context-menu-"]').forEach(m => m.classList.add('hidden'));
-        if (isHidden) {
-            menu.classList.remove('hidden');
-        }
-    }
+ <script>
+    function toggleMenu(e, menuId) {
+    e.stopPropagation();
+    const menu = document.getElementById(menuId);
+    const isHidden = menu.classList.contains('hidden');
 
-    document.addEventListener('click', function(event) {
-        if (!event.target.closest('.project-context-btn') && !event.target.closest('.project-dropdown')) {
-            document.querySelectorAll('[id^="context-menu-"]').forEach(menu => menu.classList.add('hidden'));
+    // Cerrar todos
+    document.querySelectorAll('[id^="menu-"]').forEach(m => {
+        if (m.id !== menuId) m.classList.add('hidden');
+    });
+
+    // Toggle actual
+    menu.classList.toggle('hidden');
+}
+
+// Cerrar menús al hacer click fuera
+document.addEventListener('click', function(e) {
+    const isClickInsideMenu = e.target.closest('[id^="menu-"]');
+    const isClickOnButton = e.target.closest('button[onclick*="toggleMenu"]');
+
+    if (!isClickInsideMenu && !isClickOnButton) {
+        document.querySelectorAll('[id^="menu-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+});
+function openEditModal(proyectoId) {
+    const modal = document.getElementById('editProyectoModal' + proyectoId);
+    if (modal) {
+        // Forzar que Bootstrap lo abra correctamente
+        $(modal).modal('show');
+        
+        // Cerrar cualquier menú dropdown abierto
+        document.querySelectorAll('[id^="menu-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+}
+
+// === FUNCIÓN PARA EL MENÚ DE 3 PUNTOS (corregido y simplificado) ===
+function toggleMenu(e, menuId) {
+    e.stopPropagation();
+
+    const menu = document.getElementById(menuId);
+    const isHidden = menu.classList.contains('hidden');
+
+    // Cerrar todos los menús
+    document.querySelectorAll('[id^="menu-"]').forEach(m => {
+        if (m.id !== menuId) m.classList.add('hidden');
+    });
+
+    // Toggle del actual
+    menu.classList.toggle('hidden');
+}
+
+// Cerrar menús al hacer click fuera
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('button[onclick^="toggleMenu"]') && 
+        !e.target.closest('[id^="menu-"]')) {
+        document.querySelectorAll('[id^="menu-"]').forEach(menu => {
+            menu.classList.add('hidden');
+        });
+    }
+});
+
+// === BÚSQUEDA EN TIEMPO REAL (tabla) ===
+document.getElementById('searchProject')?.addEventListener('input', function() {
+    const term = this.value.toLowerCase();
+    document.querySelectorAll('#projectsTableBody tr').forEach(row => {
+        const name = row.cells[0].textContent.toLowerCase();
+        row.style.display = name.includes(term) ? '' : 'none';
+    });
+});
+
+// === VALIDACIÓN DE FORMULARIOS (agregar y editar) ===
+function validateProyectoForm(formId) {
+    const form = document.getElementById(formId);
+    let isValid = true;
+
+    const fields = [
+        { name: 'nombre_proyecto', regex: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ.()\s]+$/, msg: 'Solo letras, números y espacios' },
+        { name: 'cliente_proyecto', regex: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ.()\s]+$/, msg: 'Solo letras, números y espacios' },
+        { name: 'cantidad_trabajadores', regex: /^\d+$/, msg: 'Número entero positivo' },
+        { name: 'monto_material', regex: /^\d+(\.\d{1,2})?$/, msg: 'Número con hasta 2 decimales' },
+        { name: 'monto_operativos', regex: /^\d+(\.\d{1,2})?$/, msg: 'Número con hasta 2 decimales' },
+        { name: 'monto_servicios', regex: /^\d+(\.\d{1,2})?$/, msg: 'Número con hasta 2 decimales' },
+    ];
+
+    fields.forEach(field => {
+        const input = form.querySelector(`[name="${field.name}"]`);
+        const errorEl = form.querySelector(`#${field.name}_error`) || 
+                        form.querySelector(`#${field.name}_${formId.match(/\d+/)?.[0] || ''}_error`);
+
+        if (input) {
+            if (input.hasAttribute('required') && !input.value.trim()) {
+                if (errorEl) errorEl.textContent = 'Este campo es obligatorio';
+                isValid = false;
+            } else if (input.value && !field.regex.test(input.value.trim())) {
+                if (errorEl) errorEl.textContent = field.msg;
+                isValid = false;
+            } else {
+                if (errorEl) errorEl.textContent = '';
+            }
         }
     });
 
-    // Validación de formularios
-    document.getElementById('addProyectoForm').addEventListener('submit', function(e) {
-        if (!validateProyectoForm('addProyectoForm')) {
+    return isValid;
+}
+
+// Aplicar validación a todos los formularios
+document.getElementById('addProyectoForm')?.addEventListener('submit', function(e) {
+    if (!validateProyectoForm('addProyectoForm')) {
+        e.preventDefault();
+    } else {
+        const btn = this.querySelector('#submit-add-proyecto');
+        btn.disabled = true;
+        btn.textContent = 'Guardando...';
+    }
+});
+
+document.querySelectorAll('[id^="editProyectoForm"]').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        if (!validateProyectoForm(this.id)) {
             e.preventDefault();
         } else {
-            const submitButton = document.getElementById('submit-add-proyecto');
-            submitButton.disabled = true;
-            submitButton.textContent = 'Guardando...';
+            const id = this.id.replace('editProyectoForm', '');
+            const btn = document.getElementById('submit-edit-proyecto-' + id);
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Actualizando...';
+            }
         }
     });
+});
 
-    document.querySelectorAll('[id^="editProyectoForm"]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            if (!validateProyectoForm(form.id)) {
-                e.preventDefault();
-            } else {
-                const submitButton = document.getElementById(`submit-edit-proyecto-${form.id.split('editProyectoForm')[1]}`);
-                submitButton.disabled = true;
-                submitButton.textContent = 'Guardando...';
-            }
-        });
+// === RESTRICCIÓN DE NÚMEROS EN INPUTS ===
+document.querySelectorAll('.project-number-only').forEach(input => {
+    input.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9.]/g, '');
+        // Permitir solo un punto
+        const parts = this.value.split('.');
+        if (parts.length > 2) {
+            this.value = parts[0] + '.' + parts.slice(1).join('');
+        }
     });
-
-    function validateProyectoForm(formId) {
-        const form = document.getElementById(formId);
-        const inputs = {
-            nombre_proyecto: {
-                pattern: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑñ.()\s]+$/,
-                error: 'Solo se permiten letras, números y espacios'
-            },
-            cliente_proyecto: {
-                pattern: /^[A-Za-z0-9ÁÉÍÓÚáéíóúÑ.ñ()\s]+$/,
-                error: 'Solo se permiten letras, números y espacios'
-            },
-            cantidad_trabajadores: {
-                pattern: /^\d+$/,
-                error: 'Debe ser un número entero no negativo'
-            },
-            monto_material: {
-                pattern: /^\d+(\.\d{1,2})?$/,
-                error: 'Debe ser un número con hasta 2 decimales'
-            },
-            monto_operativos: {
-                pattern: /^\d+(\.\d{1,2})?$/,
-                error: 'Debe ser un número con hasta 2 decimales'
-            },
-            monto_servicios: {
-                pattern: /^\d+(\.\d{1,2})?$/,
-                error: 'Debe ser un número con hasta 2 decimales'
-            },
-            fecha_inicio: {
-                check: (input) => input.value !== '',
-                error: 'Selecciona una fecha'
-            }
-        };
-
-        let isValid = true;
-
-        Object.keys(inputs).forEach(field => {
-            const input = form.querySelector(`[name="${field}"]`);
-            // Resolver el elemento de error de forma robusta para add/edit
-            const fallbackError = form.querySelector(`#${field}_error`);
-            const computedId = `#${field}_${formId.includes('edit') ? formId.split('editProyectoForm')[1] + '_' : ''}error`;
-            const errorElement = form.querySelector(computedId) || fallbackError;
-            if (errorElement) errorElement.textContent = '';
-
-            if (!input) {
-                return; // Campo no existe en este formulario
-            }
-
-            if (field === 'fecha_inicio') {
-                if (!inputs[field].check(input)) {
-                    if (errorElement) errorElement.textContent = inputs[field].error;
-                    isValid = false;
-                }
-            } else {
-                    if (!inputs[field].pattern.test(input.value)) {
-                    if (errorElement) errorElement.textContent = inputs[field].error;
-                    isValid = false;
-                }
-            }
-        });
-
-        return isValid;
-    }
-
-    // Restricción de entrada para campos numéricos
-    document.querySelectorAll('.project-number-only').forEach(input => {
-        input.addEventListener('input', function() {
-            this.value = this.value.replace(/[^0-9.]/g, '');
-        });
-    });
-
-    // Búsqueda en tiempo real
-    document.getElementById('searchProject').addEventListener('input', function() {
-        const searchTerm = this.value.toLowerCase();
-        const rows = document.querySelectorAll('#projectsTableBody tr');
-        rows.forEach(row => {
-            const projectName = row.cells[0].textContent.toLowerCase();
-            row.style.display = projectName.includes(searchTerm) ? '' : 'none';
-        });
-    });
-
-    // Carga de más proyectos
-    let allProjects = @json($proyectos);
-    let visibleProjects = allProjects.sort((a, b) => new Date(b.fecha_creacion) - new Date(a.fecha_creacion)).slice(0, 4);
-let currentIndex = 4;
-
-function loadMoreProjects() {
-    fetch(`/proyectos/load-more?offset=${currentIndex}`)
-        .then(response => response.json())
-        .then(nextProjects => {
-            if (nextProjects.length > 0) {
-                nextProjects.forEach(proyecto => {
-                    const projectBox = document.createElement('div');
-                    projectBox.className = 'project-box bg-white shadow-md rounded-lg overflow-hidden hover:shadow-lg transition-shadow';
-                    projectBox.innerHTML = `
-                        <div class="flex items-center space-x-3 min-w-0">
-                            <i class="fas fa-folder text-yellow-500 text-3xl flex-shrink-0"></i>
-                            <span class="text-lg font-medium text-gray-800 truncate flex-1 min-w-0" title="${proyecto.nombre_proyecto}">
-                                ${proyecto.nombre_proyecto}
-                            </span>
-                        </div>
-                        <div class="project-context-menu relative">
-                            <button class="project-context-btn text-gray-500 hover:text-gray-700 p-2" onclick="toggleContextMenu('context-menu-${proyecto.id_proyecto}')">
-                                <i class="fas fa-ellipsis-v"></i>
-                            </button>
-                            <div id="context-menu-${proyecto.id_proyecto}" class="hidden project-dropdown absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded shadow-lg z-10">
-                                <a href="${ '{{ route('proyectos.show', ['proyecto' => 'id_placeholder']) }}'.replace('id_placeholder', proyecto.id_proyecto) }" class="project-dropdown-item block px-4 py-2 text-gray-700 hover:bg-gray-100">Ver</a>
-                                <a href="#" class="project-dropdown-item block px-4 py-2 text-gray-700 hover:bg-gray-100" data-toggle="modal" data-target="#editProyectoModal${proyecto.id_proyecto}">Editar</a>
-                                <form action="${ '{{ route('proyectos.destroy', ['proyecto' => 'id_placeholder']) }}'.replace('id_placeholder', proyecto.id_proyecto) }" method="POST">
-                                    <input type="hidden" name="_token" value="{{ csrf_token() }}">
-                                    <input type="hidden" name="_method" value="DELETE">
-                                    <button type="submit" class="project-dropdown-item project-dropdown-danger block w-full text-left px-4 py-2 text-red-600 hover:bg-red-100" onclick="return confirm('¿Seguro que deseas eliminar este proyecto?')">Eliminar</button>
-                                </form>
-                            </div>
-                        </div>
-                    `;
-                    document.querySelector('.grid').insertBefore(projectBox, document.getElementById('loadMoreBtn')?.parentElement);
-                });
-                currentIndex += 5;
-                if (nextProjects.length < 5) {
-                    document.getElementById('loadMoreBtn').style.display = 'none';
-                }
-            } else {
-                document.getElementById('loadMoreBtn').style.display = 'none';
-            }
-        })
-        .catch(error => console.error('Error al cargar más proyectos:', error));
-}
+});
 </script>
 @endsection

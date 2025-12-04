@@ -6,7 +6,7 @@
 <section class="content-header">
     <h1>Gestionar Usuarios Autorizados <small>Controla el acceso al sistema</small></h1>
     <ol class="breadcrumb">
-        <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a href="{{ URL::withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
         <li class="active">Usuarios Autorizados</li>
     </ol>
 </section>
@@ -90,6 +90,7 @@
   <div class="modal-dialog" role="document">
     <form method="POST" action="{{ route('allowed_users.store') }}">
         @csrf
+        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
         <div class="modal-content custom-modal rounded-2xl">
             <div class="modal-header bg-primary text-white">
                 <h4 class="modal-title">Agregar Usuario</h4>
@@ -137,6 +138,7 @@
   <div class="modal-dialog" role="document">
     <form id="permissionsForm" method="POST">
         @csrf
+        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
         @method('PUT')
         <div class="modal-content custom-modal rounded-2xl">
             <div class="modal-header bg-primary text-white">
@@ -204,6 +206,7 @@
             <div class="modal-footer">
                 <form id="deleteUserForm" method="POST" style="display:inline;">
                     @csrf
+                    <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                     @method('DELETE')
                     <button type="submit" class="btn btn-danger">Eliminar</button>
                 </form>

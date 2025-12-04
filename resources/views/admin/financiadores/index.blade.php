@@ -4,7 +4,7 @@
 <section class="content-header">
     <h1>Financiadores <small>Controla la información de los financiadores</small></h1>
     <ol class="breadcrumb">
-        <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a href="{{ URL::withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
         <li class="active">Financiadores</li>
     </ol>
 </section>
@@ -14,8 +14,8 @@
             <h3 class="box-title">Lista de Financiadores</h3>
             <div class="flex justify-end space-x-2">
                 @if(Auth::check() && Auth::user()->puede_descargar)
-                    <a href="{{ route('financiadores.export.pdf') }}" class="btn btn-danger">Exportar a PDF</a>
-                    <a href="{{ route('financiadores.export.excel') }}" class="btn btn-success">Exportar a Excel</a>
+                    <a href="{{ URL::withTabToken(route('financiadores.export.pdf')) }}" class="btn btn-danger">Exportar a PDF</a>
+                    <a href="{{ URL::withTabToken(route('financiadores.export.excel')) }}" class="btn btn-success">Exportar a Excel</a>
                 @endif
                 @if(Auth::check() && Auth::user()->puede_agregar)
                     <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#addProveedorModal">Agregar Financiador</a>
@@ -52,6 +52,7 @@
                     <div class="modal-content custom-modal">
                         <form action="{{ route('financiadores.store') }}" method="POST" id="addProveedorForm">
                             @csrf
+                            <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                             <div class="modal-header bg-primary">
                                 <h4 class="modal-title text-white" id="addProveedorModalLabel">Añadir Nuevo Financiador</h4>
                             </div>
@@ -131,6 +132,7 @@
                                     <form action="{{ route('financiadores.destroy', $proveedor) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este financiador?');" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
+                                        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                         <button type="submit" class="btn btn-danger btn-xs"><i class="fa fa-trash"></i></button>
                                     </form>
                                 @endif
@@ -174,6 +176,7 @@
                                     <form action="{{ route('financiadores.update', $proveedor) }}" method="POST" id="editProveedorForm{{ $proveedor->id_proveedor }}">
                                         @csrf
                                         @method('PUT')
+                                        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                         <div class="modal-header bg-primary">
                                             <h4 class="modal-title text-white">Editar Financiador</h4>
                                         </div>
@@ -316,109 +319,113 @@
     // Solo letras, espacios y puntos
     document.querySelectorAll('.letter-dot-only').forEach(input => {
         input.addEventListener('input', function() {
-            this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ0-9\s.]/g, '');
+            this.value = this.value.replace(/[^A-Za-zÁÉÍÓÚáéíóúÑñ\s.]/g, '');
         });
     });
 
-    // Función para limitar longitud según tipo de identificación
-    function setupIdentificacionValidation(formId) {
-        const form = document.getElementById(formId);
-        if (!form) return;
-
-        const tipoRadios = form.querySelectorAll('input[name="tipo_identificacion"]');
+    // === FUNCIÓN PARA CONSULTAR DNI O RUC (AHORA SÍ FUNCIONA EN TODO) ===
+    function iniciarConsultaDocumento(form) {
         const identificacionInput = form.querySelector('input[name="identificacion"]');
-        const errorElement = form.querySelector(`#identificacion${formId.includes('edit') ? '_' + formId.split('editProveedorForm')[1] : ''}_error`);
+        const nombreInput = form.querySelector('input[name="nombre_prov"]');
+        const tipoRadios = form.querySelectorAll('input[name="tipo_identificacion"]');
 
-        function updateMaxLength() {
-            const selected = form.querySelector('input[name="tipo_identificacion"]:checked').value;
-            const max = selected === 'RUC' ? 11 : 8;
+        if (!identificacionInput || !nombreInput) return;
 
-            // APLICAR maxlength dinámicamente
-            identificacionInput.setAttribute('maxlength', max);
-            identificacionInput.placeholder = selected === 'RUC' 
-                ? 'Ingresa RUC (11 dígitos)' 
-                : 'Ingresa DNI (8 dígitos)';
+        function consultar() {
+            const doc = identificacionInput.value.trim();
+            if (!doc) return;
 
-            // RECORTAR valor si excede el nuevo límite
-            if (identificacionInput.value.length > max) {
-                identificacionInput.value = identificacionInput.value.slice(0, max);
+            const tipo = form.querySelector('input[name="tipo_identificacion"]:checked')?.value || 'RUC';
+            if ((tipo === 'DNI' && doc.length !== 8) || (tipo === 'RUC' && doc.length !== 11)) return;
+
+            if (identificacionInput.dataset.consultando) return;
+            identificacionInput.dataset.consultando = 'true';
+
+            // Loading
+            let loading = identificacionInput.parentNode.querySelector('.loading-doc');
+            if (!loading) {
+                loading = document.createElement('small');
+                loading.className = 'loading-doc text-info';
+                loading.innerHTML = ' Buscando...';
+                identificacionInput.parentNode.appendChild(loading);
             }
+
+            const url = tipo === 'DNI' ? `/api/dni/${doc}` : `/api/ruc/${doc}`;
+
+            fetch(url)
+                .then(r => r.ok ? r.json() : Promise.reject())
+                .then(data => {
+                    let nombre = '';
+
+                    if (tipo === 'DNI') {
+                        const n = (data.nombres || '').trim();
+                        const a1 = (data.apellido_paterno || '').trim();
+                        const a2 = (data.apellido_materno || '').trim();
+                        nombre = [n, a1, a2].filter(Boolean).join(' ');
+                    } else if (data.razon_social) {
+                        nombre = data.razon_social.trim();
+                    }
+
+                    if (nombre) {
+                        nombreInput.value = nombre;
+                        const ok = document.createElement('small');
+                        ok.textContent = ' ¡Encontrado!';
+                        ok.className = 'text-success font-bold';
+                        identificacionInput.parentNode.appendChild(ok);
+                        setTimeout(() => ok.remove(), 3000);
+                    }
+                })
+                .catch(() => {
+                    // Silencioso si no existe
+                })
+                .finally(() => {
+                    identificacionInput.dataset.consultando = 'false';
+                    if (loading) loading.remove();
+                });
         }
 
-        tipoRadios.forEach(radio => {
-            radio.addEventListener('change', updateMaxLength);
-        });
+        identificacionInput.addEventListener('blur', consultar);
 
-        // Validación al enviar
-        form.addEventListener('submit', function(e) {
-            const selected = form.querySelector('input[name="tipo_identificacion"]:checked').value;
-            const value = identificacionInput.value.trim();
-            errorElement.textContent = '';
+        // Cambiar tipo → limpiar
+        tipoRadios.forEach(r => r.addEventListener('change', () => {
+            identificacionInput.value = '';
+            nombreInput.value = '';
+            setTimeout(() => identificacionInput.focus(), 100);
+        }));
 
-            if (selected === 'RUC' && value.length !== 11) {
-                errorElement.textContent = 'El RUC debe tener exactamente 11 dígitos';
-                e.preventDefault();
-                return;
-            }
-            if (selected === 'DNI' && value.length !== 8) {
-                errorElement.textContent = 'El DNI debe tener exactamente 8 dígitos';
-                e.preventDefault();
-                return;
-            }
-        });
-
-        // Inicializar
-        updateMaxLength();
-    }
-
-    // Validación general de letras
-    function validateLetterFields(formId) {
-        const form = document.getElementById(formId);
-        const inputs = {
-            nombre_prov: {
-                pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s.]+$/,
-                error: 'Solo se permiten letras, espacios y puntos'
-            },
-            descripcion_prov: {
-                pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñ\s.]*$/,
-                error: 'Solo se permiten letras, espacios y puntos'
-            }
+        // Maxlength dinámico
+        const actualizarMax = () => {
+            const tipo = form.querySelector('input[name="tipo_identificacion"]:checked')?.value || 'RUC';
+            identificacionInput.maxLength = tipo === 'RUC' ? 11 : 8;
+            identificacionInput.placeholder = tipo === 'RUC' ? 'RUC (11 dígitos)' : 'DNI (8 dígitos)';
         };
-        let isValid = true;
-
-        Object.keys(inputs).forEach(field => {
-            const input = form.querySelector(`[name="${field}"]`);
-            const errorId = `${field}${formId.includes('edit') ? '_' + formId.split('editProveedorForm')[1] : ''}_error`;
-            const errorElement = form.querySelector(`#${errorId}`);
-            if (errorElement) errorElement.textContent = '';
-
-            if (input && input.value && !inputs[field].pattern.test(input.value)) {
-                if (errorElement) errorElement.textContent = inputs[field].error;
-                isValid = false;
-            }
-        });
-        return isValid;
+        tipoRadios.forEach(r => r.addEventListener('change', actualizarMax));
+        actualizarMax();
     }
 
-    // Aplicar validaciones
-    document.getElementById('addProveedorForm').addEventListener('submit', function(e) {
-        if (!validateLetterFields('addProveedorForm')) {
-            e.preventDefault();
-        }
+    // === INICIAR EN AGREGAR ===
+    document.getElementById('addProveedorForm')?.addEventListener('DOMContentLoaded', function () {
+        iniciarConsultaDocumento(this);
     });
 
-    document.querySelectorAll('[id^="editProveedorForm"]').forEach(form => {
-        form.addEventListener('submit', function(e) {
-            if (!validateLetterFields(form.id)) {
-                e.preventDefault();
+    // === INICIAR EN EDITAR CUANDO SE ABRE EL MODAL (ESTO ES LA CLAVE) ===
+    document.querySelectorAll('[data-target^="#editProveedorModal"]').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const modalId = this.getAttribute('data-target');
+            const modal = document.querySelector(modalId);
+            if (modal) {
+                modal.addEventListener('shown.bs.modal', function () {
+                    const form = this.querySelector('form');
+                    if (form) iniciarConsultaDocumento(form);
+                }, { once: true });
             }
         });
     });
 
-    // Inicializar validación de identificación en ambos formularios
-    setupIdentificacionValidation('addProveedorForm');
-    document.querySelectorAll('[id^="editProveedorForm"]').forEach(form => {
-        setupIdentificacionValidation(form.id);
+    // === INICIAR EN AGREGAR AL CARGAR LA PÁGINA ===
+    document.addEventListener('DOMContentLoaded', function () {
+        const formAdd = document.getElementById('addProveedorForm');
+        if (formAdd) iniciarConsultaDocumento(formAdd);
     });
 </script>
 @endpush

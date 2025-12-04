@@ -174,31 +174,47 @@
 
         <h2>Información General</h2>
         <div class="info-general">
-           <p><strong>Cliente:</strong> {{ $proyecto->cliente_proyecto }}</p>
-            <p><strong>Descripción:</strong> {{ $proyecto->descripcion_proyecto ?? 'N/A' }}</p>
-            <p><strong>Fecha de Inicio:</strong> {{ $proyecto->fechapr->fecha_inicio ? $proyecto->fechapr->fecha_inicio->format('d/m/Y') : 'N/A' }}</p>
-            <p><strong>Fecha Fin Aproximada:</strong> {{ $proyecto->fechapr->fecha_fin_aprox ? $proyecto->fechapr->fecha_fin_aprox->format('d/m/Y') : 'N/A' }}</p>
-            <p><strong>Monto Inicial:</strong> S/ {{ number_format($proyecto->montopr->monto_inicial ?? 0, 2) }}</p>
-            <p><strong>Cantidad de Trabajadores:</strong> {{ $proyecto->planilla->count() }}</p>
+    <p><strong>Cliente:</strong> {{ $proyecto->cliente_proyecto }}</p>
+    <p><strong>Descripción:</strong> {{ $proyecto->descripcion_proyecto ?? 'N/A' }}</p>
+    <p><strong>Fecha de Inicio:</strong> {{ $proyecto->fechapr->fecha_inicio ? $proyecto->fechapr->fecha_inicio->format('d/m/Y') : 'N/A' }}</p>
+    <p><strong>Fecha Fin Aproximada:</strong> {{ $proyecto->fechapr->fecha_fin_aprox ? $proyecto->fechapr->fecha_fin_aprox->format('d/m/Y') : 'N/A' }}</p>
 
-            <!-- SCTR -->
-            <p><strong>SCTR:</strong> 
-                @if($proyecto->egresos && $proyecto->egresos->scr > 0)
-                    S/ {{ number_format($proyecto->egresos->scr, 2) }}
-                @else
-                    <em style="color: #888;">No se implementó este gasto en el proyecto</em>
-                @endif
-            </p>
+    <!-- Solo se muestra si el proyecto YA FINALIZÓ -->
+@if($proyecto->fechapr && !empty($proyecto->fechapr->fecha_fin_true) && $proyecto->fechapr->fecha_fin_true !== '0000-00-00' && $proyecto->fechapr->fecha_fin_true !== null)        <p>
+            <strong>Fecha de Finalización Real:</strong> 
+            <span style="color: #c00c0c; font-weight: bold; font-size: 12pt;">
+                {{ $proyecto->fechapr->fecha_fin_true->format('d/m/Y') }}
+            </span>
+            @if($proyecto->fechapr->fecha_fin_aprox)
+                @php
+                    $real = $proyecto->fechapr->fecha_fin_true;
+                    $aprox = $proyecto->fechapr->fecha_fin_aprox;
+                    $diasDiff = $real->diffInDays($aprox, false);
+                @endphp
+            @endif
+        </p>
+    @endif
 
-            <!-- Gastos Administrativos -->
-            <p><strong>Gastos Administrativos:</strong> 
-                @if($proyecto->egresos && $proyecto->egresos->gastos_administrativos > 0)
-                    S/ {{ number_format($proyecto->egresos->gastos_administrativos, 2) }}
-                @else
-                    <em style="color: #888;">No se implementó este gasto en el proyecto</em>
-                @endif
-            </p>
-        </div>
+    <p><strong>Monto Inicial:</strong> S/ {{ number_format($proyecto->montopr->monto_inicial ?? 0, 2) }}</p>
+    <p><strong>Cantidad de Trabajadores:</strong> {{ $proyecto->planilla->count() }}</p>
+
+    <!-- SCTR y Gastos Admin (sin cambios) -->
+    <p><strong>SCTR:</strong> 
+        @if($proyecto->egresos && $proyecto->egresos->scr > 0)
+            S/ {{ number_format($proyecto->egresos->scr, 2) }}
+        @else
+            <em style="color: #888;">No se implementó este gasto en el proyecto</em>
+        @endif
+    </p>
+
+    <p><strong>Gastos Administrativos:</strong> 
+        @if($proyecto->egresos && $proyecto->egresos->gastos_administrativos > 0)
+            S/ {{ number_format($proyecto->egresos->gastos_administrativos, 2) }}
+        @else
+            <em style="color: #888;">No se implementó este gasto en el proyecto</em>
+        @endif
+    </p>
+</div>
         <div class="spacer"></div>
     </div>
     

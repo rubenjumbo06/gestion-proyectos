@@ -6,7 +6,7 @@
 <section class="content-header">
     <h1>Trabajadores <small>Controla la información de los trabajadores</small></h1>
     <ol class="breadcrumb">
-        <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a href="{{ URL::withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
         <li class="active">Trabajadores</li>
     </ol>
 </section>
@@ -17,8 +17,8 @@
             <h3 class="box-title">Lista de Trabajadores</h3>
             <div class="flex justify-end space-x-2">
                 @if(Auth::check() && Auth::user()->permisos && Auth::user()->puede_descargar)
-                    <a href="{{ route('trabajadores.export.pdf') }}" class="btn btn-danger">Exportar a PDF</a>
-                    <a href="{{ route('trabajadores.export.excel') }}" class="btn btn-success">Exportar a Excel</a>
+                    <a href="{{ URL::withTabToken(route('trabajadores.export.pdf')) }}" class="btn btn-danger">Exportar a PDF</a>
+                    <a href="{{ URL::withTabToken(route('trabajadores.export.excel')) }}" class="btn btn-success">Exportar a Excel</a>
                 @endif
                 @if(Auth::check() && Auth::user()->permisos && Auth::user()->puede_agregar)
                     <a href="#" class="btn btn-primary" data-toggle="modal" data-target="#addTrabajadorModal">Agregar Trabajador</a>
@@ -55,6 +55,7 @@
                     <div class="modal-content custom-modal">
                         <form action="{{ route('trabajadores.store') }}" method="POST" enctype="multipart/form-data" id="addTrabajadorForm">
                             @csrf
+                            <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                             <div class="modal-header bg-primary">
                                 <h4 class="modal-title text-white" id="addTrabajadorModalLabel">Añadir Nuevo Trabajador</h4>
                             </div>
@@ -199,6 +200,7 @@
                                     <form action="{{ route('trabajadores.destroy', $trabajador) }}" method="POST" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este trabajador?');" style="display:inline;">
                                         @csrf
                                         @method('DELETE')
+                                        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                         <button type="submit" class="btn btn-danger btn-xs"><i class="fa fa-trash"></i></button>
                                     </form>
                                 @endif
@@ -294,6 +296,7 @@
                                     <form action="{{ route('trabajadores.update', $trabajador) }}" method="POST" enctype="multipart/form-data" id="editTrabajadorForm{{ $trabajador->id_trabajadores }}">
                                         @csrf
                                         @method('PUT')
+                                        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                         <div class="modal-header bg-primary">
                                             <h4 class="modal-title text-white font-semibold" id="editTrabajadorModalLabel{{ $trabajador->id_trabajadores }}">Editar Trabajador</h4>
                                         </div>
@@ -542,7 +545,7 @@
 @push('scripts')
 <script>
 // Guardar departamento para el modal de "Añadir Trabajador"
-document.getElementById('guardarDepartamento').addEventListener('click', function() {
+document.getElementById('guardarDepartamento')?.addEventListener('click', function() {
     const seleccionado = document.querySelector('input[name="departamento_option"]:checked');
     const errorMsg = document.getElementById('departamento_error_msg');
     const departamentoNombre = document.getElementById('departamento_nombre');
@@ -553,21 +556,50 @@ document.getElementById('guardarDepartamento').addEventListener('click', functio
         departamentoNombre.classList.add('is-invalid');
         return;
     }
-
     errorMsg.style.display = 'none';
     departamentoNombre.value = seleccionado.dataset.nombre;
     departamentoId.value = seleccionado.value;
     departamentoNombre.classList.remove('is-invalid');
-    document.getElementById('id_departamento_error').textContent = '';
-
-    console.log('Departamento seleccionado (Add):', {
-        id: departamentoId.value,
-        nombre: departamentoNombre.value
-    });
-
     $('#modalDepartamentos').modal('hide');
 });
+// Solo en el modal de "Añadir Trabajador"
+document.getElementById('dni_trab').addEventListener('blur', function () {
+    let dni = this.value.trim();
+    
+    if (dni.length !== 8 || !/^\d+$/.test(dni)) return;
 
+    // Mostrar loading
+    this.disabled = true;
+    let loading = document.createElement('span');
+    loading.textContent = ' Consultando...';
+    loading.className = 'text-info ml-2';
+    this.parentNode.appendChild(loading);
+
+    fetch(`/api/dni/${dni}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.nombres) {
+                document.getElementById('nombre_trab').value = data.nombres;
+                document.getElementById('apellido_trab').value = 
+                    (data.apellido_paterno + ' ' + data.apellido_materno).trim();
+            }
+
+            if (data.fecha_nacimiento) {
+                // Convertir "15/03/1995" → "1995-03-15"
+                const [dia, mes, anio] = data.fecha_nacimiento.split('/');
+                document.getElementById('fecha_nac').value = `${anio}-${mes}-${dia}`;
+            }
+
+            // Opcional: autoseleccionar sexo si viene (algunos scrapers lo dan)
+        })
+        .catch(err => {
+            console.log('Error consultando DNI:', err);
+        })
+        .finally(() => {
+            this.disabled = false;
+            if (loading && loading.parentNode) loading.remove();
+        });
+});
 // Guardar departamento para los modales de "Editar Trabajador"
 document.querySelectorAll('[id^="guardarDepartamentoEdit_"]').forEach(button => {
     button.addEventListener('click', function() {
@@ -730,42 +762,171 @@ document.querySelectorAll('[id^="editTrabajadorForm"]').forEach(form => {
     });
 });
 
-// Reset al abrir el modal de "Añadir Trabajador"
-document.getElementById('addTrabajadorModal').addEventListener('show.bs.modal', function() {
-    const form = document.getElementById('addTrabajadorForm');
-    form.reset();
-    const departamentoNombre = document.getElementById('departamento_nombre');
-    const departamentoId = document.getElementById('id_departamento');
-    const errorMsg = document.getElementById('departamento_error_msg');
-    
-    departamentoNombre.value = '';
-    departamentoId.value = '';
-    departamentoNombre.classList.remove('is-invalid');
-    document.getElementById('id_departamento_error').textContent = '';
-    document.querySelectorAll('input[name="departamento_option"]').forEach(radio => radio.checked = false);
-    errorMsg.style.display = 'none';
-    console.log('Modal de Añadir abierto, formulario reseteado');
+// === AUTOCOMPLETADO DNI - SOLO EN MODAL AGREGAR (FUNCIONANDO 100%) ===
+document.getElementById('addTrabajadorModal').addEventListener('shown.bs.modal', function () {
+    const dniInput = document.getElementById('dni_trab');
+    const nombreInput = document.getElementById('nombre_trab');
+    const apellidoInput = document.getElementById('apellido_trab');
+    const fechaInput = document.getElementById('fecha_nac');
+
+    // Limpiar evento anterior para evitar duplicados
+    dniInput.removeEventListener('blur', consultarDni);
+
+    // Función principal
+    function consultarDni() {
+        let dni = dniInput.value.trim();
+
+        if (dni.length !== 8 || !/^\d+$/.test(dni)) {
+            return;
+        }
+
+        // Evitar consultas duplicadas
+        if (dniInput.dataset.consultando === 'true') return;
+        dniInput.dataset.consultando = 'true';
+
+        // Loading visual
+        const loading = document.createElement('small');
+        loading.textContent = ' Consultando DNI...';
+        loading.className = 'text-primary font-italic ml-2';
+        dniInput.parentNode.appendChild(loading);
+
+        fetch(`/api/dni/${dni}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Error HTTP ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+    console.log('DNI encontrado:', data);
+
+    // Función para poner primera letra en mayúscula
+    function toTitleCase(str) {
+    if (!str) return '';
+    return str
+        .toLowerCase()
+        .split(' ')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+    if (data.nombres) {
+        nombreInput.value = toTitleCase(data.nombres.trim());
+    }
+
+    const apellidos = [data.apellido_paterno, data.apellido_materno]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+    if (apellidos) {
+        apellidoInput.value = toTitleCase(apellidos);
+    }
+
+    if (data.fecha_nacimiento) {
+        const [dia, mes, anio] = data.fecha_nacimiento.split('/');
+        if (dia && mes && anio) {
+            fechaInput.value = `${anio}-${mes.padStart(2, '0')}-${dia.padStart(2, '0')}`;
+        }
+    }
+
+    // Mensaje de éxito
+    const success = document.createElement('small');
+    success.textContent = ' ¡DNI encontrado!';
+    success.className = 'text-success font-bold ml-2';
+    dniInput.parentNode.appendChild(success);
+    setTimeout(() => success.remove(), 3000);
+})
+            .catch(err => {
+                console.error('Error consultando DNI:', err);
+                const error = document.createElement('small');
+                error.textContent = ' No encontrado';
+                error.className = 'text-danger ml-2';
+                dniInput.parentNode.appendChild(error);
+                setTimeout(() => error.remove(), 4000);
+            })
+            .finally(() => {
+                dniInput.dataset.consultando = 'false';
+                if (loading.parentNode) loading.remove();
+                dniInput.disabled = false;
+            });
+    }
+
+    // Adjuntar evento blur
+    dniInput.addEventListener('blur', consultarDni);
+
+    // Opcional: también al presionar Enter
+    dniInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            consultarDni();
+        }
+    });
 });
 
 // Reset al abrir los modales de "Editar Trabajador"
 document.querySelectorAll('[id^="editTrabajadorModal"]').forEach(modal => {
-    modal.addEventListener('show.bs.modal', function() {
-        const trabajadorId = this.id.split('editTrabajadorModal')[1];
-        const departamentoNombre = document.getElementById(`departamento_nombre_edit_${trabajadorId}`);
-        const departamentoId = document.getElementById(`id_departamento_edit_${trabajadorId}`);
-        const errorMsg = document.getElementById(`departamento_error_msg_edit_${trabajadorId}`);
-        
-        departamentoNombre.classList.remove('is-invalid');
-        document.getElementById(`id_departamento_edit_${trabajadorId}_error`).textContent = '';
-        errorMsg.style.display = 'none';
-        
-        // Pre-seleccionar el departamento actual
-        const currentDepartamentoId = departamentoId.value;
-        document.querySelectorAll(`input[name="departamento_option_edit_${trabajadorId}"]`).forEach(radio => {
-            radio.checked = (radio.value === currentDepartamentoId);
-        });
+    modal.addEventListener('shown.bs.modal', function () {
+        const trabajadorId = this.id.replace('editTrabajadorModal', '');
+        const dniInput = document.getElementById(`dni_trab_${trabajadorId}`);
+        const nombreInput = document.getElementById(`nombre_trab_${trabajadorId}`);
+        const apellidoInput = document.getElementById(`apellido_trab_${trabajadorId}`);
+        const fechaInput = document.getElementById(`fecha_nac_${trabajadorId}`);
 
-        console.log(`Modal de Editar ${trabajadorId} abierto, departamento actual: ${currentDepartamentoId}`);
+        function consultarDniEdit() {
+            let dni = dniInput.value.trim();
+            if (dni.length !== 8 || !/^\d+$/.test(dni)) return;
+            if (dniInput.dataset.consultando === 'true') return;
+
+            dniInput.dataset.consultando = 'true';
+            const loading = document.createElement('small');
+            loading.textContent = ' Consultando...';
+            loading.className = 'text-info ml-2';
+            dniInput.parentNode.appendChild(loading);
+
+            fetch(`/api/dni/${dni}`)
+                .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+                .then(data => {
+                    if (data.nombres) {
+                        nombreInput.value = toTitleCase(data.nombres.trim());
+                    }
+                    const apellidos = [data.apellido_paterno, data.apellido_materno]
+                        .filter(Boolean).join(' ').trim();
+                    if (apellidos) {
+                        apellidoInput.value = toTitleCase(apellidos);
+                    }
+                    if (data.fecha_nacimiento) {
+                        const [d, m, a] = data.fecha_nacimiento.split('/');
+                        fechaInput.value = `${a}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+                    }
+
+                    const success = document.createElement('small');
+                    success.textContent = ' ¡Actualizado!';
+                    success.className = 'text-success font-bold ml-2';
+                    dniInput.parentNode.appendChild(success);
+                    setTimeout(() => success.remove(), 3000);
+                })
+                .catch(() => {
+                    const err = document.createElement('small');
+                    err.textContent = ' No encontrado';
+                    err.className = 'text-danger ml-2';
+                    dniInput.parentNode.appendChild(err);
+                    setTimeout(() => err.remove(), 4000);
+                })
+                .finally(() => {
+                    dniInput.dataset.consultando = 'false';
+                    if (loading.parentNode) loading.remove();
+                });
+        }
+
+        // Limpiamos eventos anteriores y añadimos los nuevos
+        dniInput.removeEventListener('blur', consultarDniEdit);
+        dniInput.addEventListener('blur', consultarDniEdit);
+        dniInput.addEventListener('keypress', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                consultarDniEdit();
+            }
+        });
     });
 });
 </script>

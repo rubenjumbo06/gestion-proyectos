@@ -19,8 +19,43 @@
     <meta http-equiv="Expires" content="0">
 </head>
 <body class="hold-transition skin-blue sidebar-mini">
-<div class="wrapper">
+{{-- Protección por pestaña: la ejecutamos LO ANTES POSIBLE para que la segunda pestaña no muestre contenido --}}
+<script>
+(function() {
+    try {
+        if (!window.localStorage || !window.sessionStorage) return;
 
+        var isAuthenticated = {{ auth()->check() ? 'true' : 'false' }};
+        if (!isAuthenticated) return;
+
+        var TAB_KEY = 'gp_active_tab_id';
+        var myId = sessionStorage.getItem(TAB_KEY);
+
+        if (!myId) {
+            myId = Date.now().toString() + '_' + Math.random().toString(36).substr(2, 8);
+            sessionStorage.setItem(TAB_KEY, myId);
+        }
+
+        var activeId = localStorage.getItem(TAB_KEY);
+
+        if (activeId && activeId !== myId) {
+            // Usamos replace para no dejar historial y que sea más rápido
+            window.location.replace('{{ route('login.form') }}');
+            return;
+        }
+
+        localStorage.setItem(TAB_KEY, myId);
+
+        window.addEventListener('beforeunload', function() {
+            var currentActive = localStorage.getItem(TAB_KEY);
+            if (currentActive === myId) {
+                localStorage.removeItem(TAB_KEY);
+            }
+        });
+    } catch (e) {}
+})();
+</script>
+<div class="wrapper">
     @include('layouts.header')
     @include('layouts.sidebar')
 
@@ -39,6 +74,33 @@
 <script src="{{ asset('adminlte/plugins/Chart.js/Chart.js') }}"></script>
 <script>
 window.addEventListener('pageshow', e => e.persisted && location.reload());
+</script>
+<script>
+(function(){
+    try {
+        var token = '{{ session('tab_token_' . auth()->id()) }}';
+        if (!token) return;
+        // Fetch: adjuntar X-Tab-Token por defecto
+        var origFetch = window.fetch;
+        window.fetch = function(input, init){
+            init = init || {};
+            init.headers = init.headers || {};
+            if (init.headers instanceof Headers) {
+                if (!init.headers.has('X-Tab-Token')) init.headers.set('X-Tab-Token', token);
+            } else if (Array.isArray(init.headers)) {
+                var has = init.headers.some(function(h){ return (h[0]||'').toLowerCase() === 'x-tab-token'; });
+                if (!has) init.headers.push(['X-Tab-Token', token]);
+            } else {
+                if (!('X-Tab-Token' in init.headers)) init.headers['X-Tab-Token'] = token;
+            }
+            return origFetch(input, init);
+        };
+        // jQuery AJAX: adjuntar X-Tab-Token por defecto
+        if (window.$ && $.ajaxSetup) {
+            $.ajaxSetup({ headers: { 'X-Tab-Token': token } });
+        }
+    } catch (e) { /* noop */ }
+})();
 </script>
 @stack('scripts')
 </body>

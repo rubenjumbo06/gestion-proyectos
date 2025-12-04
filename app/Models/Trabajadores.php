@@ -35,4 +35,15 @@ class Trabajadores extends Model
     {
         return $this->hasMany(Planilla::class, 'id_trabajadores', 'id_trabajadores');
     }
+
+ public function setNombreTrabAttribute($value)
+{
+    $this->attributes['nombre_trab'] = ucwords(mb_strtolower($value));
+}
+
+public function setApellidoTrabAttribute($value)
+{
+    $this->attributes['apellido_trab'] = ucwords(mb_strtolower($value));
+}
+
 }

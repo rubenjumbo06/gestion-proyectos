@@ -13,7 +13,7 @@ use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\TrabajadoresController;
 use App\Http\Controllers\ActividadesController;
 use App\Http\Controllers\PlanillaController;
-
+use App\Http\Controllers\DniController;
 // Ruta para la página de login
 Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login.form');
 Route::post('/login', [LoginController::class, 'login'])->name('login');
@@ -29,20 +29,53 @@ Route::post('/register', [RegisterController::class, 'register'])->name('registe
 // Ruta para cerrar sesión
 Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
-// Ruta raíz (redirige al primer proyecto)
-Route::get('/', [ProyectosController::class, 'dashboardHome'])
-    ->name('dashboard')
-    ->middleware('auth', 'no-cache');
-
-Route::resource('servicios', ServicioController::class);
-
-// Ruta para ver un proyecto en específico
-Route::get('/dashboard/{id}', [ProyectosController::class, 'dashboard'])
-    ->name('dashboard.proyecto')
-    ->middleware('auth', 'no-cache');
-
 // Rutas protegidas (solo para usuarios autenticados)
-Route::middleware(['auth', 'no-cache'])->group(function () {
+Route::middleware(['auth', 'no-cache', 'single.tab'])->group(function () {
+    
+    // routes/web.php (dentro del grupo auth)
+    Route::get('/api/tab-heartbeat', function () {
+        if (!auth()->check()) {
+            return response()->json(['status' => 'unauthenticated'], 401);
+        }
+
+        $userId = auth()->id();
+        $tabId = request()->header('X-Tab-ID');
+
+        if (!$tabId) {
+            return response()->json(['status' => 'invalid'], 403);
+        }
+
+        // Guardamos en cache la pestaña activa (expira en 10 segundos)
+        $activeTabKey = "active_tab:{$userId}";
+        $currentTab = cache($activeTabKey);
+
+        if ($currentTab && $currentTab !== $tabId) {
+            // Hay otra pestaña activa → esta es duplicada
+            return response()->json(['status' => 'blocked'], 409);
+        }
+
+        // Esta es la pestaña activa → la registramos
+        cache([$activeTabKey => $tabId], 10);
+
+        return response()->json(['status' => 'active']);
+    })->name('tab.heartbeat');
+
+
+    // Ruta raíz (redirige al primer proyecto)
+    Route::get('/', [ProyectosController::class, 'dashboardHome'])
+        ->name('dashboard')
+        ->middleware('auth', 'no-cache');
+
+    Route::resource('servicios', ServicioController::class);
+    Route::get('/api/dni/{dni}', action: [DniController::class, 'consultar']);
+    // routes/web.php o api.php
+    // CONSULTA DE RUC - Decolecta
+    Route::get('/api/ruc/{ruc}', [App\Http\Controllers\ProveedorController::class, 'buscarRuc'])->name('api.ruc');// Ruta para ver un proyecto en específico
+    Route::get('/dashboard/{id}', [ProyectosController::class, 'dashboard'])
+        ->name('dashboard.proyecto')
+        ->middleware('auth', 'no-cache');
+
+    
     // Ruta para el perfil del usuario
     Route::get('/perfiles', [ProfileController::class, 'show'])->name('profile.show');
     Route::put('/perfiles', [ProfileController::class, 'update'])->name('profile.update');
@@ -141,7 +174,7 @@ Route::middleware(['auth', 'no-cache'])->group(function () {
 });
 
 // Rutas para Super Admin
-Route::middleware(['auth', 'superadmin', 'no-cache'])->group(function () {
+Route::middleware(['auth', 'superadmin', 'no-cache', 'single.tab'])->group(function () {
     Route::get('/allowed_users', [AllowedUserController::class, 'index'])->name('allowed_users.index');
     Route::post('/allowed_users', [AllowedUserController::class, 'store'])->name('allowed_users.store');
     Route::delete('/allowed_users/{allowedUser}', [AllowedUserController::class, 'destroy'])->name('allowed_users.destroy');

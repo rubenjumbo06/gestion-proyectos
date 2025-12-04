@@ -11,7 +11,7 @@
             </div>
             <div class="col-sm-6">
                 <ol class="breadcrumb float-sm-right">
-                    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="{{ URL::withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
                     <li class="breadcrumb-item active">Reporte de Actividades</li>
                 </ol>
             </div>
@@ -64,6 +64,7 @@
                     <div class="modal-content custom-modal project-modal">
                         <form action="{{ route('reporte_actividades.store') }}" method="POST" id="addActividadForm">
                             @csrf
+                            <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                             <div class="modal-header bg-primary project-modal-header">
                                 <h4 class="modal-title text-white project-modal-title" id="addActividadModalLabel">Añadir Nueva Actividad</h4>
                                 <button type="button" class="close project-modal-close" data-dismiss="modal">&times;</button>
@@ -135,6 +136,7 @@
                                                   style="display:inline;">
                                                 @csrf
                                                 @method('DELETE')
+                                                <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                                 <button type="submit" class="btn btn-danger btn-sm"><i class="fa fa-trash"></i></button>
                                             </form>
                                         @endcan
@@ -149,6 +151,7 @@
                                     <form action="{{ route('reporte_actividades.update', $actividad->id) }}" method="POST" id="editActividadForm{{ $actividad->id }}">
                                         @csrf
                                         @method('PUT')
+                                        <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                                         <div class="modal-header bg-primary project-modal-header">
                                             <h4 class="modal-title text-white project-modal-title" id="editActividadModalLabel{{ $actividad->id }}">Editar Actividad</h4>
                                             <button type="button" class="close project-modal-close" data-dismiss="modal">&times;</button>

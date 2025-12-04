@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\AllowedUser;
 use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\URL;
 use Exception;
 use GuzzleHttp\Client;
 
@@ -39,14 +40,13 @@ class GoogleController extends Controller
         }
 
         try {
+            // Usamos stateless() para evitar problemas de sesión/estado en el primer intento
             $googleUser = Socialite::driver('google')->stateless()->user();
-            \Log::info('Usuario de Google obtenido', ['email' => $googleUser->getEmail()]);
             $email = $googleUser->getEmail();
 
             // Verifica si el usuario está autorizado
             $allowedUser = AllowedUser::where('email', $email)->first();
             if (!$allowedUser || !$allowedUser->is_active) {
-                \Log::warning('Acceso no autorizado', ['email' => $email]);
                 return redirect()->route('login')->with('error', 'Este correo no tiene acceso autorizado o está desactivado.');
             }
 
@@ -127,10 +127,14 @@ class GoogleController extends Controller
 
             // Inicia sesión con el usuario
             Auth::login($user, true);
-            \Log::info('Login exitoso con Google', ['user_id' => $user->id]);
-            return redirect()->route('dashboard');
+
+            // Genera token de pestaña y redirige SIEMPRE con token en URL
+            $token = bin2hex(random_bytes(32));
+            session(["tab_token_" . $user->id => $token]);
+
+            return redirect()->to(URL::withTabToken('dashboard'));
         } catch (Exception $e) {
-            \Log::error('Error en autenticación con Google', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+                \Log::error('Error en autenticación con Google', ['message' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
             return redirect()->route('login')->with('error', 'Algo salió mal durante la autenticación con Google: ' . $e->getMessage());
         }
     }

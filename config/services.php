@@ -39,5 +39,9 @@ return [
         'client_secret' => env('GOOGLE_CLIENT_SECRET'),
         'redirect' => env('GOOGLE_REDIRECT_URI')
     ],
+    
+    'decolecta' => [
+        'key' => env('DECOLECTA_KEY'),
+    ],
 
 ];

@@ -8,9 +8,10 @@ use App\Models\AllowedUser;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 use GuzzleHttp\Client;
 use Exception;
-use Illuminate\Support\Facades\Log;
 
 class RegisterController extends Controller
 {
@@ -87,7 +88,12 @@ class RegisterController extends Controller
             Auth::login($user);
             \Log::info('Registro y login exitoso', ['user_id' => $user->id]);
 
-            return redirect()->route('dashboard')->with('success', 'Cuenta creada exitosamente.');
+            // Genera token de pestaña y redirige al dashboard con token en URL
+            $token = bin2hex(random_bytes(32));
+            session(["tab_token_" . $user->id => $token]);
+
+            return redirect()->to(\Illuminate\Support\Facades\URL::withTabToken('dashboard'))
+                ->with('success', 'Cuenta creada exitosamente.');
         } catch (Exception $e) {
             \Log::error('Error durante el registro', ['message' => $e->getMessage()]);
             return redirect()->back()->with('error', 'Algo salió mal durante el registro: ' . $e->getMessage());

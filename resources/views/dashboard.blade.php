@@ -36,24 +36,24 @@
         </div>
 
         <!-- Gráficos -->
-        <div class="grid grid-cols-2 gap-12">
-            <!-- Materiales -->
-            <div class="p-8 bg-white from-gray-100 to-white/80 shadow-2xl rounded-2xl border-2 border-gray-200 hover:shadow-2xl hover:border-blue-600 transition duration-300">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+            <!-- Materiales (AHORA IGUAL QUE EN DETALLES) -->
+            <div class="p-8 bg-white shadow-2xl rounded-2xl border-2 border-gray-200 hover:shadow-2xl hover:border-blue-600 transition duration-300">
                 <h2 class="text-2xl font-bold mb-6 text-gray-900 border-b-2 border-gray-200 pb-2">Materiales</h2>
-                <div id="chartMateriales" style="width: 100%; height: 350px;"></div>
-                <div id="materialesLegend" class="mt-6 text-lg text-gray-700"></div>
+                <div id="chartMateriales" style="width: 100%; height: 480px;"></div>
+                <ul id="materialesLegend" class="mt-4 space-y-1 text-sm text-gray-700"></ul>
             </div>
 
-            <!-- Egresos -->
-            <div class="p-8 bg-white from-gray-100 to-white/80 shadow-2xl rounded-2xl border-2 border-gray-200 hover:shadow-2xl hover:border-blue-600 transition duration-300">
+            <!-- Egresos (mejorado) -->
+            <div class="p-8 bg-white shadow-2xl rounded-2xl border-2 border-gray-200 hover:shadow-2xl hover:border-blue-600 transition duration-300">
                 <h2 class="text-2xl font-bold mb-6 text-gray-900 border-b-2 border-gray-200 pb-2">Egresos</h2>
-                <div id="chartEgresos" style="width: 100%; height: 350px;"></div>
+                <div id="chartEgresos" style="width: 100%; height: 480px;"></div>
             </div>
 
-            <!-- Control de Gastos -->
-            <div class="col-span-2 p-8 bg-white from-gray-200 to-white/80 shadow-2xl rounded-2xl border-2 border-gray-200 hover:shadow-2xl hover:border-blue-700 transition duration-300">
+            <!-- Control de Gastos (mejorado) -->
+            <div class="lg:col-span-2 p-8 bg-white shadow-2xl rounded-2xl border-2 border-gray-200 hover:shadow-2xl hover:border-green-600 transition duration-300">
                 <h2 class="text-2xl font-bold mb-6 text-gray-900 border-b-2 border-gray-200 pb-2">Control de Gastos</h2>
-                <div id="chartControl" style="width: 100%; height: 350px;"></div>
+                <div id="chartControl" style="width: 100%; height: 420px;"></div>
             </div>
         </div>
     </div>
@@ -62,105 +62,154 @@
 
 @push('scripts')
 <script>
-    // Carga asíncrona de ECharts (CDN directo)
+    // Carga asíncrona de ECharts
     function loadECharts(callback) {
-        if (typeof echarts !== 'undefined') {
-            callback();
-            return;
-        }
+        if (typeof echarts !== 'undefined') return callback();
         const script = document.createElement('script');
         script.src = 'https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js';
         script.onload = callback;
-        script.onerror = function() {
-            console.error('=== DASHBOARD ERROR: ECharts CDN falló');
-            showErrors('ECharts no cargó (CDN falló)');
-        };
         document.head.appendChild(script);
     }
 
-    // Inicializar dropdown (independiente de ECharts)
-    function initDropdown() {
-        console.log('=== DASHBOARD: Inicializando dropdown');
-        const selectProyecto = document.getElementById('proyectoSelect');
-        const tituloProyecto = document.getElementById('tituloProyecto');
-        const montoInicialEl = document.getElementById('montoInicial');
-        const clienteProyectoEl = document.getElementById('clienteProyecto');
+    // Paleta de colores consistente
+    function palette(i) {
+        const colors = ['#3B82F6','#2563EB','#1E40AF','#F59E0B','#EF4444','#10B981','#6366F1','#14B8A6','#8B5CF6','#EC4899'];
+        return colors[i % colors.length];
+    }
+    function adjustColor(color, amount) {
+        return '#' + color.replace(/^#/, '').replace(/../g, c => 
+            ('0'+Math.min(255, Math.max(0, parseInt(c, 16) + amount)).toString(16)).substr(-2)
+        );
+    }
 
-        if (!selectProyecto) {
-            console.error('=== DASHBOARD ERROR: Select no encontrado');
-            return;
+    // Normalizar datos (compatible con todos los endpoints)
+    function normalizeLabelsData(payload) {
+        if (!payload || payload.error) return { labels: [], data: [] };
+        if (Array.isArray(payload.labels)) {
+            return { labels: payload.labels, data: (payload.montos || payload.data || []).map(Number) };
+        }
+        if (Array.isArray(payload)) {
+            return {
+                labels: payload.map(x => x.label || x.categoria || x.descripcion_mat || 'Sin nombre'),
+                data: payload.map(x => Number(x.value || x.total || x.monto || x.monto_mat || 0))
+            };
+        }
+        return { labels: [], data: [] };
+    }
+
+    // === GRÁFICO DE MATERIALES (100% IGUAL AL DE DETALLES) ===
+    function buildMaterialesOption(payload) {
+        const { labels, data: montos } = normalizeLabelsData(payload);
+        if (labels.length === 0) {
+            return { title: { text: 'Sin datos', left: 'center', top: 'center', textStyle: { color: '#9ca3af', fontSize: 16 } }, series: [] };
         }
 
-        selectProyecto.addEventListener('change', async function(e) {
-            console.log('=== DASHBOARD: Cambio detectado, nuevo ID', e.target.value);
-            const id = e.target.value;
-            const opt = e.target.options[e.target.selectedIndex];
-            const nombre = opt.getAttribute('data-nombre') || '';
-            const cliente = opt.getAttribute('data-cliente') || '';
-            let monto = Number(opt.getAttribute('data-monto') || 0);
+        const enableScroll = labels.length > 10;
+        const endPercent = enableScroll ? Math.min(100, Math.max(20, 1000 / labels.length)) : 100;
 
-            if (monto === 0 && id) {
-                try {
-                    const bal = await fetchJSON(`/api/proyectos/${id}/balance`);
-                    if (bal && !bal.error) monto = Number(bal.total_servicios || bal.monto_inicial || 0);
-                } catch (e) {
-                    console.error('=== DASHBOARD: Fallo fetch monto fallback', e);
+        return {
+            tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' },
+                formatter: p => `<div style="padding:4px"><div style="font-weight:600;color:#374151;margin-bottom:4px">${p[0].name}</div><div style="color:#f59e0b;font-weight:bold">S/ ${Number(p[0].value).toFixed(2)}</div></div>`,
+                backgroundColor: '#ffffff', borderColor: '#e5e7eb', textStyle: { color: '#374151' }, padding: 12, borderRadius: 8
+            },
+            grid: { left: '3%', right: '4%', bottom: '3%', top: '3%', containLabel: true },
+            xAxis: { type: 'value', axisLabel: { formatter: v => `S/${v >= 1000 ? (v/1000).toFixed(1)+'k' : v}`, color: '#6B7280', fontSize: 11 },
+                splitLine: { lineStyle: { type: 'dashed', color: '#E5E7EB' } }
+            },
+            yAxis: { type: 'category', data: labels, axisLabel: { color: '#374151', fontSize: 12, width: 160, overflow: 'break', interval: 0 },
+                axisTick: { show: false }, axisLine: { lineStyle: { color: '#D1D5DB' } }
+            },
+            dataZoom: enableScroll ? [
+                { type: 'slider', yAxisIndex: 0, width: 20, right: 10, start: 0, end: endPercent, fillerColor: 'rgba(59,130,246,0.2)' },
+                { type: 'inside', yAxisIndex: 0, zoomOnMouseWheel: false, moveOnMouseWheel: true }
+            ] : [],
+            series: [{
+                type: 'bar',
+                data: montos.map((v, i) => ({
+                    value: v,
+                    itemStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
+                            { offset: 0, color: palette(i) },
+                            { offset: 1, color: adjustColor(palette(i), -20) }
+                        ]),
+                        borderRadius: [0, 4, 4, 0]
+                    }
+                })),
+                barMaxWidth: 34,
+                showBackground: true,
+                backgroundStyle: { color: '#F3F4F6', borderRadius: [0, 4, 4, 0] }
+            }]
+        };
+    }
+
+    // === EGRESOS (mejorado) ===
+    function buildEgresosOption(payload) {
+        const { labels, data } = normalizeLabelsData(payload);
+        if (labels.length === 0) return { title: { text: 'Sin datos', left: 'center', top: 'center', textStyle: { color: '#9ca3af' } }, series: [] };
+
+        return {
+            tooltip: { trigger: 'item', formatter: '{b}: S/{c} ({d}%)', backgroundColor: '#fff', borderColor: '#e5e7eb', padding: 10, borderRadius: 8 },
+            legend: { top: 10, left: 'center', orient: 'horizontal', textStyle: { fontSize: 12 } },
+            series: [{
+                type: 'pie',
+                radius: ['40%', '70%'],
+                center: ['50%', '58%'],
+                data: labels.map((l, i) => ({ name: l, value: data[i] || 0, itemStyle: { color: palette(i) } })),
+                label: { show: false },
+                emphasis: { itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0,0,0,0.5)' } }
+            }]
+        };
+    }
+
+    // === CONTROL DE GASTOS (mejorado) ===
+    function buildControlOption(payload) {
+        if (!payload || payload.error) {
+            return { title: { text: 'Sin datos', left: 'center', top: 'center', textStyle: { color: '#9ca3af' } }, series: [] };
+        }
+        const inicial = Number(payload.monto_inicial || 0);
+        const gastado = Math.abs(Number(payload.total_egresos || 0));
+        const restante = Math.max(0, inicial - gastado);
+
+        return {
+            title: { text: 'Control de Gastos', left: 'center', top: 10, textStyle: { fontSize: 18, fontWeight: 'bold' } },
+            tooltip: { trigger: 'item', formatter: '{b}: S/{c} ({d}%)' },
+            legend: { orient: 'vertical', left: 'left', top: 'middle', textStyle: { fontSize: 13 } },
+            series: [{
+                type: 'pie',
+                radius: ['45%', '70%'],
+                center: ['60%', '50%'],
+                avoidLabelOverlap: false,
+                label: { formatter: '{b}\nS/ {c}', fontSize: 13, fontWeight: 'bold' },
+                labelLine: { show: true },
+                data: [
+                    { value: gastado, name: 'Gastado', itemStyle: { color: '#EF4444' } },
+                    { value: restante, name: 'Restante', itemStyle: { color: '#10B981' } }
+                ]
+            }]
+        };
+    }
+
+    // Fetch con CSRF
+    async function fetchJSON(url) {
+        try {
+            const tabToken = '{{ session('tab_token_' . auth()->id()) }}';
+            const withToken = (u) => u + (u.includes('?') ? '&' : '?') + 't=' + tabToken;
+            const res = await fetch(withToken(url), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
                 }
-            }
-
-            tituloProyecto.textContent = nombre;
-            clienteProyectoEl.textContent = cliente;
-            montoInicialEl.textContent = monto.toLocaleString('es-PE', { minimumFractionDigits: 2 });
-            console.log('=== DASHBOARD: Dropdown actualizado - Título:', nombre, 'Monto:', monto);
-
-            if (typeof updateCharts === 'function') updateCharts(id);
-        });
-
-        // Inicial inicial
-        const initialId = selectProyecto.value;
-        if (initialId) {
-            const opt = selectProyecto.options[selectProyecto.selectedIndex];
-            const nombre = opt.getAttribute('data-nombre') || '';
-            const cliente = opt.getAttribute('data-cliente') || '';
-            let monto = Number(opt.getAttribute('data-monto') || 0);
-            tituloProyecto.textContent = nombre;
-            clienteProyectoEl.textContent = cliente;
-            montoInicialEl.textContent = monto.toLocaleString('es-PE', { minimumFractionDigits: 2 });
-            console.log('=== DASHBOARD: Inicial dropdown cargado');
+            });
+            if (!res.ok) throw new Error(await res.text());
+            return await res.json();
+        } catch (e) {
+            console.error('Fetch error:', e);
+            return { error: true };
         }
     }
 
-    // Inicializar charts solo si ECharts cargado
-    function initCharts() {
-        console.log('=== DASHBOARD: Inicializando charts');
-        let chartMateriales = echarts.init(document.getElementById('chartMateriales'));
-        let chartEgresos = echarts.init(document.getElementById('chartEgresos'));
-        let chartControl = echarts.init(document.getElementById('chartControl'));
-        console.log('=== DASHBOARD: Charts inicializados');
-
-        window.addEventListener('resize', () => {
-            chartMateriales.resize();
-            chartEgresos.resize();
-            chartControl.resize();
-        });
-
-        const initialId = document.getElementById('proyectoSelect').value;
-        if (initialId) {
-            updateCharts(initialId);
-        } else {
-            showErrors('No proyecto inicial');
-        }
-    }
-
-    // Actualizar charts
+    // Actualizar todos los gráficos
     async function updateCharts(proyectoId) {
-        console.log('=== DASHBOARD: Actualizando charts para ID', proyectoId);
-        let chartMateriales = echarts.getInstanceByDom(document.getElementById('chartMateriales'));
-        let chartEgresos = echarts.getInstanceByDom(document.getElementById('chartEgresos'));
-        let chartControl = echarts.getInstanceByDom(document.getElementById('chartControl'));
-
-        [chartMateriales, chartEgresos, chartControl].forEach(chart => chart.setOption(emptyBar('Cargando...')));
-
         const base = `/api/proyectos/${proyectoId}`;
         const [mat, egr, bal] = await Promise.all([
             fetchJSON(`${base}/materiales`),
@@ -168,238 +217,70 @@
             fetchJSON(`${base}/balance`)
         ]);
 
-        console.log('=== DASHBOARD: Datos cargados', { mat, egr, bal });
+        const chartMateriales = echarts.getInstanceByDom(document.getElementById('chartMateriales')) || echarts.init(document.getElementById('chartMateriales'));
+        const chartEgresos = echarts.getInstanceByDom(document.getElementById('chartEgresos')) || echarts.init(document.getElementById('chartEgresos'));
+        const chartControl = echarts.getInstanceByDom(document.getElementById('chartControl')) || echarts.init(document.getElementById('chartControl'));
 
-        chartMateriales.setOption(buildMaterialesOption(mat) || emptyBar('Sin Materiales'));
-        chartEgresos.setOption(buildEgresosOption(egr) || emptyPie('Sin Egresos'));
-        chartControl.setOption(buildControlOption(bal) || emptyPie('Sin Balance'));
-    }
-
-    // Funciones auxiliares
-    function emptyBar(title, message) {
-        return {
-            title: { text: title, left: 'center' },
-            xAxis: { type: 'category', data: [] },
-            yAxis: { type: 'value' },
-            series: [{ type: 'bar', data: [] }],
-            graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: message, fill: '#999', fontSize: 14 } }]
-        };
-    }
-
-    function emptyPie(title, message) {
-        return {
-            title: { text: title, left: 'center' },
-            series: [{ type: 'pie', data: [], radius: '50%', label: { show: false } }],
-            graphic: [{ type: 'text', left: 'center', top: 'center', style: { text: message, fill: '#999', fontSize: 14 } }]
-        };
-    }
-
-    async function fetchJSON(url) {
-        console.log('=== DASHBOARD FETCH:', url);
-        try {
-            const response = await fetch(url, {
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest',
-                    'Accept': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content || '{{ csrf_token() }}'
-                },
-                credentials: 'same-origin'
+        // Materiales + leyenda manual
+        if (mat && !mat.error) {
+            chartMateriales.setOption(buildMaterialesOption(mat), true);
+            const { labels } = normalizeLabelsData(mat);
+            const legendEl = document.getElementById('materialesLegend');
+            legendEl.innerHTML = '';
+            labels.forEach((l, i) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="inline-block w-4 h-4 mr-2 rounded" style="background:${palette(i)}"></span>${l}`;
+                legendEl.appendChild(li);
             });
-            if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`HTTP ${response.status}: ${text.substring(0, 100)}`);
-            }
-            const data = await response.json();
-            console.log('=== DASHBOARD FETCH OK:', data);
-            return data;
-        } catch (error) {
-            console.error('=== DASHBOARD FETCH ERROR:', error);
-            return { error: error.message };
+        } else {
+            chartMateriales.setOption({ title: { text: 'Sin datos de materiales' } });
+            document.getElementById('materialesLegend').innerHTML = '';
         }
+
+        chartEgresos.setOption(buildEgresosOption(egr));
+        chartControl.setOption(buildControlOption(bal));
+
+        setTimeout(() => {
+            chartMateriales.resize();
+            chartEgresos.resize();
+            chartControl.resize();
+        }, 100);
     }
 
-    function normalizeLabelsData(payload, preferMontos = false) {
-        if (!payload || payload.error) return { labels: [], data: [], error: payload?.error };
-        if (Array.isArray(payload.labels) && (Array.isArray(payload.data) || Array.isArray(payload.montos))) {
-            const data = (preferMontos && Array.isArray(payload.montos)) ? payload.montos : payload.data || [];
-            return { labels: payload.labels, data: data.map(x => Number(x || 0)) };
-        }
-        if (Array.isArray(payload)) {
-            const labels = payload.map(it => it.descripcion_mat ?? it.label ?? '');
-            const data = payload.map(it => Number(it.monto_mat ?? it.monto ?? 0));
-            return { labels, data };
-        }
-        return { labels: [], data: [] };
-    }
-
-    function buildMaterialesOption(payload) {
-        const norm = normalizeLabelsData(payload, true);
-        if (norm.error) return emptyBar('Error Materiales', norm.error);
-        return {
-            title: { text: 'Monto por Material', left: 'center', textStyle: { fontSize: 16, fontWeight: 'bold' } },
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
-                formatter: p => {
-                    const val = p[0].value;
-                    return `<div style="font-family: 'Poppins', sans-serif; padding: 4px;">
-                        <div style="font-weight: 600; color: #374151; margin-bottom: 4px;">${p[0].name}</div>
-                        <div style="color: #3B82F6; font-weight: bold;">S/ ${Number(val).toFixed(2)}</div>
-                    </div>`;
-                },
-                backgroundColor: '#ffffff',
-                borderColor: '#e5e7eb',
-                textStyle: { color: '#374151' },
-                padding: 12,
-                borderRadius: 8
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '3%',
-                top: '12%',
-                containLabel: true
-            },
-            xAxis: {
-                type: 'category',
-                data: norm.labels,
-                axisLabel: {
-                    color: '#374151',
-                    fontSize: 11,
-                    interval: 0,
-                    rotate: norm.labels.length > 5 ? 45 : 0
-                },
-                axisTick: { show: false },
-                axisLine: { lineStyle: { color: '#D1D5DB' } }
-            },
-            yAxis: {
-                type: 'value',
-                axisLabel: {
-                    formatter: val => `S/ ${val >= 1000 ? (val/1000).toFixed(1) + 'k' : val}`,
-                    color: '#6B7280',
-                    fontSize: 11
-                },
-                splitLine: {
-                    lineStyle: { type: 'dashed', color: '#E5E7EB' }
-                }
-            },
-            series: [{
-                data: norm.data.map((v, i) => ({
-                    value: v,
-                    itemStyle: {
-                        color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
-                            { offset: 0, color: '#3B82F6' },
-                            { offset: 1, color: '#60A5FA' }
-                        ]),
-                        borderRadius: [4, 4, 0, 0]
-                    }
-                })),
-                type: 'bar',
-                barMaxWidth: 50,
-                showBackground: true,
-                backgroundStyle: { color: '#F3F4F6', borderRadius: [4, 4, 0, 0] },
-                label: {
-                    show: norm.data.length <= 8,
-                    position: 'top',
-                    formatter: '{c}',
-                    fontSize: 10,
-                    color: '#374151'
-                }
-            }]
-        };
-    }
-
-    function buildEgresosOption(payload) {
-        const norm = normalizeLabelsData(payload);
-        if (norm.error) return emptyPie('Error Egresos', norm.error);
-        const pieData = norm.labels.map((l, i) => ({ name: l, value: norm.data[i] || 0 }));
-        return {
-            title: { text: 'Distribución de Egresos', left: 'center' },
-            tooltip: { trigger: 'item', formatter: '{b}: S/{c} ({d}%)' },
-            series: [{ name: 'Egresos', type: 'pie', radius: '50%', data: pieData }]
-        };
-    }
-
-    function buildControlOption(balancePayload) {
-        if (!balancePayload || balancePayload.error) return emptyPie('Error Control', balancePayload?.error || 'Sin Balance');
-        const totalServicios = Number(balancePayload.total_servicios || balancePayload.monto_inicial || 0);
-        const egresos = Number(balancePayload.total_egresos || 0); // Monto gastado - CORREGIDO: usar total_egresos
-        const gananciaNeta = Number(balancePayload.ganancia_neta || (totalServicios - egresos)); // Utilidad restante
-
-        // Asegurar valores no negativos
-        const gastado = Math.max(0, egresos);
-        const utilidadRestante = Math.max(0, gananciaNeta);
-
-        return {
-            title: {
-                text: 'Control de Gastos',
-                left: 'center',
-                textStyle: { fontSize: 16, fontWeight: 'bold', color: '#374151' }
-            },
-            tooltip: {
-                trigger: 'item',
-                formatter: p => `${p.marker} ${p.name}: <strong>S/ ${Number(p.value).toFixed(2)}</strong> (${p.percent}%)`,
-                backgroundColor: '#ffffff',
-                borderColor: '#e5e7eb',
-                textStyle: { color: '#374151', fontFamily: 'Poppins, sans-serif' },
-                padding: 12,
-                borderRadius: 8
-            },
-            legend: {
-                orient: 'vertical',
-                left: 'left',
-                top: 'center',
-                data: ['Gastado', 'Utilidad Restante'],
-                textStyle: { fontSize: 12, color: '#374151' }
-            },
-            series: [{
-                name: 'Gastos',
-                type: 'pie',
-                radius: ['35%', '65%'],
-                center: ['60%', '50%'],
-                avoidLabelOverlap: false,
-                label: {
-                    show: true,
-                    formatter: params => `${params.name}\nS/ ${Number(params.value).toFixed(2)}`,
-                    fontSize: 12,
-                    position: 'outside',
-                    color: '#374151',
-                    fontWeight: 'bold'
-                },
-                labelLine: {
-                    show: true,
-                    length: 15,
-                    length2: 10
-                },
-                emphasis: {
-                    label: { show: true, fontSize: 14, fontWeight: 'bold' },
-                    itemStyle: { shadowBlur: 10, shadowOffsetX: 0, shadowColor: 'rgba(0, 0, 0, 0.5)' }
-                },
-                data: [
-                    {
-                        value: gastado,
-                        name: 'Gastado',
-                        itemStyle: { color: '#EF4444' }
-                    },
-                    {
-                        value: utilidadRestante,
-                        name: 'Utilidad Restante',
-                        itemStyle: { color: '#10B981' }
-                    }
-                ]
-            }]
-        };
-    }
-
-    function showErrors(message) {
-        ['chartMateriales', 'chartEgresos', 'chartControl'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.innerHTML = `<p class="text-red-500 text-center p-4">Error: ${message}</p>`;
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', () => {
+        initDropdown();
+        loadECharts(() => {
+            const initialId = document.getElementById('proyectoSelect').value;
+            if (initialId) updateCharts(initialId);
         });
-    }
 
-    // Iniciar dropdown y cargar ECharts
-    initDropdown();
-    loadECharts(initCharts);
+        function initDropdown() {
+            const select = document.getElementById('proyectoSelect');
+            const titulo = document.getElementById('tituloProyecto');
+            const monto = document.getElementById('montoInicial');
+            const cliente = document.getElementById('clienteProyecto');
+
+            select.addEventListener('change', e => {
+                const opt = e.target.selectedOptions[0];
+                titulo.textContent = opt.dataset.nombre;
+                cliente.textContent = opt.dataset.cliente;
+                monto.textContent = Number(opt.dataset.monto || 0).toLocaleString('es-PE', { minimumFractionDigits: 2 });
+                updateCharts(e.target.value);
+            });
+
+            // Cargar inicial
+            if (select.value) {
+                const opt = select.selectedOptions[0];
+                titulo.textContent = opt.dataset.nombre;
+                cliente.textContent = opt.dataset.cliente;
+                monto.textContent = Number(opt.dataset.monto || 0).toLocaleString('es-PE', { minimumFractionDigits: 2 });
+            }
+        }
+
+        window.addEventListener('resize', () => {
+            echarts.getInstances().forEach(ch => ch.resize());
+        });
+    });
 </script>
 @endpush

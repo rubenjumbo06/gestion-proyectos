@@ -10,7 +10,7 @@ use App\Exports\TrabajadoresExport;
 use Maatwebsite\Excel\Facades\Excel;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
-
+use Illuminate\Validation\Rule;
 
 class TrabajadoresController extends Controller
 {
@@ -47,9 +47,22 @@ class TrabajadoresController extends Controller
         $validated = $request->validate([
             'nombre_trab' => 'required|regex:/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/|max:100',
             'apellido_trab' => 'required|regex:/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/|max:100',
-            'dni_trab' => 'required|digits:8|unique:trabajadores,dni_trab',
-            'correo_trab' => 'required|email|max:255|unique:trabajadores,correo_trab',
-            'num_telef' => 'required|digits:9',
+            'dni_trab'        => [
+            'required',
+            'digits:8',
+            Rule::unique('trabajadores', 'dni_trab')->whereNull('deleted_at')
+        ],
+        'correo_trab'     => [
+            'required',
+            'email',
+            'max:255',
+            Rule::unique('trabajadores', 'correo_trab')->whereNull('deleted_at')
+        ],
+        'num_telef'       => [
+            'required',
+            'digits:9',
+            Rule::unique('trabajadores', 'num_telef')->whereNull('deleted_at')
+        ],
             'sexo_trab' => 'required|in:Masculino,Femenino',
             'fecha_nac' => 'required|date',
             'id_departamento' => 'required|exists:departamento,id_departamento',
@@ -57,7 +70,8 @@ class TrabajadoresController extends Controller
             'nombre_trab.regex' => 'El nombre solo puede contener letras y espacios.',
             'apellido_trab.regex' => 'Los apellidos solo pueden contener letras y espacios.',
             'dni_trab.digits' => 'El DNI debe tener exactamente 8 dígitos.',
-            'num_telef.digits' => 'El teléfono debe tener exactamente 9 dígitos.',
+            'num_telef.digits'       => 'El teléfono debe tener exactamente 9 dígitos.',
+        'num_telef.unique'       => 'Este número de teléfono ya está en uso por un trabajador activo.',
             'correo_trab.email' => 'Debe ingresar un correo electrónico válido.',
             'sexo_trab.required' => 'Selecciona un sexo.',
             'fecha_nac.required' => 'La fecha de nacimiento es obligatoria.',
@@ -95,9 +109,30 @@ class TrabajadoresController extends Controller
         $validated = $request->validate([
             'nombre_trab' => 'required|regex:/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/|max:100',
             'apellido_trab' => 'required|regex:/^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$/|max:100',
-            'dni_trab' => 'required|digits:8|unique:trabajadores,dni_trab,' . $trabajador->id_trabajadores . ',id_trabajadores',
-            'correo_trab' => 'required|email|max:255|unique:trabajadores,correo_trab,' . $trabajador->id_trabajadores . ',id_trabajadores',
-            'num_telef' => 'required|digits:9',
+            'dni_trab' => [
+            'required',
+            'digits:8',
+            Rule::unique('trabajadores', 'dni_trab')
+                ->ignore($trabajador->id_trabajadores, 'id_trabajadores')  // ← AQUÍ EL FIX
+                ->whereNull('deleted_at')
+        ],
+
+        'correo_trab' => [
+            'required',
+            'email',
+            'max:255',
+            Rule::unique('trabajadores', 'correo_trab')
+                ->ignore($trabajador->id_trabajadores, 'id_trabajadores')  // ← AQUÍ
+                ->whereNull('deleted_at')
+        ],
+
+        'num_telef' => [
+            'required',
+            'digits:9',
+            Rule::unique('trabajadores', 'num_telef')
+                ->ignore($trabajador->id_trabajadores, 'id_trabajadores')  // ← AQUÍ
+                ->whereNull('deleted_at')
+        ],
             'sexo_trab' => 'required|in:Masculino,Femenino',
             'fecha_nac' => 'required|date',
             'id_departamento' => 'required|exists:departamento,id_departamento',
@@ -105,7 +140,8 @@ class TrabajadoresController extends Controller
             'nombre_trab.regex' => 'El nombre solo puede contener letras y espacios.',
             'apellido_trab.regex' => 'Los apellidos solo pueden contener letras y espacios.',
             'dni_trab.digits' => 'El DNI debe tener exactamente 8 dígitos.',
-            'num_telef.digits' => 'El teléfono debe tener exactamente 9 dígitos.',
+            'num_telef.digits'       => 'El teléfono debe tener exactamente 9 dígitos.',
+        'num_telef.unique'       => 'Este número de teléfono ya está en uso por otro trabajador activo.',
             'correo_trab.email' => 'Debe ingresar un correo electrónico válido.',
             'sexo_trab.required' => 'Selecciona un sexo.',
             'fecha_nac.required' => 'La fecha de nacimiento es obligatoria.',

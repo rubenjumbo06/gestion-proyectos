@@ -48,7 +48,7 @@
                                         </div>
                                     </div>
                                     <div class="user-menu-actions">
-                                        <a href="{{ route('profile.show') }}" class="btn btn-default btn-flat">Ver Perfil</a>
+                                        <a href="{{ secure_url(route('profile.show')) }}" class="btn btn-default btn-flat">Ver Perfil</a>
                                         <a href="{{ route('logout') }}" class="btn btn-default btn-flat" onclick="event.preventDefault(); document.getElementById('logout-form').submit();">Cerrar sesión</a>
                                     </div>
                                 </li>

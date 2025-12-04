@@ -3,69 +3,50 @@
         <ul class="sidebar-menu" data-widget="tree">
             <li class="header">MENÚ</li>
 
-            <!-- Dashboard -->
             <li class="{{ Route::is('dashboard') ? 'active' : '' }}">
-                <a href="{{ route('dashboard') }}" title="Dashboard">
+                <a href="{{ URL::withTabToken(route('dashboard')) }}">
                     <i class="fa fa-home"></i> <span>Dashboard</span>
                 </a>
             </li>
 
-            <!-- Proyectos -->
             <li class="{{ Route::is('proyectos.*') ? 'active' : '' }}">
-                <a href="{{ route('proyectos.index') }}" title="Proyectos">
+                <a href="{{ URL::withTabToken(route('proyectos.index')) }}">
                     <i class="fa fa-folder"></i> <span>Proyectos</span>
                 </a>
             </li>
 
-             <!-- Reporte de Actividades
-            <li class="{{ Route::is('reporte_actividades') ? 'active' : '' }}">
-                <a href="{{ route('reporte_actividades') }}" title="Reporte de Actividades">
-                    <i class="fa fa-list"></i> <span>Reporte de Actividades</span>
-                </a>
-            </li> -->
-
-            <!-- Financiadores -->
             <li class="{{ Route::is('financiadores.*') ? 'active' : '' }}">
-                <a href="{{ route('financiadores.index') }}" title="Financiadores">
+                <a href="{{ URL::withTabToken(route('financiadores.index')) }}">
                     <i class="fa fa-truck"></i> <span>Financiadores</span>
                 </a>
             </li>
 
-            <!-- Departamentos -->
             <li class="{{ Route::is('departamentos.*') ? 'active' : '' }}">
-                <a href="{{ url('/admin/departamentos') }}" title="Departamentos">
+                <a href="{{ URL::withTabToken(route('departamentos.index')) }}">
                     <i class="fa fa-building"></i> <span>Departamentos</span>
                 </a>
             </li>
 
-            <!-- Trabajadores -->
             <li class="{{ Route::is('trabajadores.*') ? 'active' : '' }}">
-                <a href="{{ url('/admin/trabajadores') }}" title="Trabajadores">
+                <a href="{{ URL::withTabToken(route('trabajadores.index')) }}">
                     <i class="fa fa-users"></i> <span>Trabajadores</span>
                 </a>
             </li>
 
-            <!-- Exportación General -->
-            @if(auth()->check() && auth()->user()->puede_descargar)
-                <li class="{{ Route::is('exportacion.general') ? 'active' : '' }}">
-                    <a href="{{ route('exportacion.general') }}">
-                        <i class="fa fa-file-pdf"></i> <span>Exportación General</span>
-                    </a>
-                </li>
+            @if(auth()->user()->puede_descargar ?? false)
+            <li class="{{ Route::is('exportacion.general') ? 'active' : '' }}">
+                <a href="{{ URL::withTabToken(route('exportacion.general')) }}">
+                    <i class="fa fa-file-pdf"></i> <span>Exportación General</span>
+                </a>
+            </li>
             @endif
 
-            <!-- Usuarios Autorizados (solo SuperAdmin) -->
-            @if(auth()->check())
-                @php
-                    $allowedUser = \App\Models\AllowedUser::where('email', auth()->user()->email)->first();
-                @endphp
-                @if($allowedUser && $allowedUser->is_superadmin)
-                    <li class="{{ Route::is('allowed_users.*') ? 'active' : '' }}">
-                        <a href="{{ route('allowed_users.index') }}" title="Usuarios Autorizados"> 
-                            <i class="fa fa-user-plus"></i> <span>Usuarios Autorizados</span>
-                        </a>
-                    </li>
-                @endif
+            @if(auth()->user()->is_superadmin ?? false)
+            <li class="{{ Route::is('allowed_users.*') ? 'active' : '' }}">
+                <a href="{{ URL::withTabToken(route('allowed_users.index')) }}">
+                    <i class="fa fa-user-plus"></i> <span>Usuarios Autorizados</span>
+                </a>
+            </li>
             @endif
         </ul>
     </section>

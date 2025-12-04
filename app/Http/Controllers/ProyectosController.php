@@ -18,7 +18,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
-
+use Illuminate\Validation\Rule;
 class ProyectosController extends Controller
 {
     /**
@@ -36,11 +36,12 @@ class ProyectosController extends Controller
     public function dashboardHome()
     {
         try {
-            // Obtener el primer proyecto (si existe) y redirigir a su dashboard
+            // Obtener el primer proyecto (si existe) y redirigir a su dashboard SIEMPRE con token de pestaña
             $primerProyecto = Proyectos::first();
 
             if ($primerProyecto) {
-                return redirect()->route('dashboard.proyecto', $primerProyecto->id_proyecto);
+                $url = \URL::withTabToken(route('dashboard.proyecto', $primerProyecto->id_proyecto));
+                return redirect()->to($url);
             }
 
             // Si no hay proyectos, devolver la vista dashboard con datos vacíos

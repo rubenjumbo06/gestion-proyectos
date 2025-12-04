@@ -13,7 +13,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'superadmin' => \App\Http\Middleware\EnsureSuperAdmin::class,
-            'no-cache' => \App\Http\Middleware\NoCache::class,  // Agrega esta línea
+            'no-cache' => \App\Http\Middleware\NoCache::class, 
+            'single.tab' => \App\Http\Middleware\PreventMultipleTabs::class,
         ]);
     })
     ->withExceptions(using: function (Exceptions $exceptions): void {

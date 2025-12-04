@@ -6,7 +6,7 @@
 <section class="content-header">
     <h1>Perfil del Usuario <small>Detalles de tu cuenta</small></h1>
     <ol class="breadcrumb">
-        <li><a href="{{ route('dashboard') }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
+        <li><a href="{{ URL::withTabToken(route('dashboard')) }}"><i class="fa fa-dashboard"></i> Dashboard</a></li>
         <li class="active">Perfil</li>
     </ol>
 </section>
@@ -75,6 +75,7 @@
             <div class="modal-body">
                 <form id="editProfileForm" method="POST" action="{{ route('profile.update') }}" enctype="multipart/form-data">
                     @csrf
+                    <input type="hidden" name="t" value="{{ session('tab_token_' . auth()->id()) }}">
                     @method('PUT')
                     <div class="form-group mb-4">
                         <label for="name" class="font-semibold">Nombre completo</label>
