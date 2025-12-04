@@ -41,19 +41,6 @@ body {
     font-family: 'Poppins', sans-serif !important;
 }
 
-.main-header .logo {
-    background-color: var(--navbar-bg) !important;
-    color: var(--text-color) !important;
-}
-
-.main-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    z-index: 1000;
-}
-
 .content-wrapper {
     margin-left: 230px; /* Match sidebar width */
     margin-top: 50px; /* Offset to match header height */
@@ -103,14 +90,14 @@ body {
     background-color: var(--navbar-bg) !important;
     color: var(--text-color) !important;
 }
-
+/*
 .navbar-custom-menu {
     display: flex !important;
     align-items: center;
     height: 100%;
     padding: 0 10px;
     position: relative; /* Para controlar el contexto */
-}
+
 
 .sidebar-menu li a {
     color: var(--text-color) !important;
@@ -414,49 +401,6 @@ body {
     }
 }
 
-.user-image {
-    width: 35px !important;
-    height: 35px !important;
-    border-radius: 50%;
-    margin-left: 10px;
-    object-fit: cover;
-}
-
-.user-image-dropdown {
-    width: 50px !important;
-    height: 50px !important;
-    border-radius: 50%;
-    object-fit: cover;
-}
-
-.user-image-icon {
-    width: 35px;
-    height: 35px;
-    border-radius: 50%;
-    background: #f0f0f0;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 10px;
-}
-
-.user-menu-avatar .user-image-icon {
-    width: 65px !important;
-    height: 65px !important;
-    font-size: 24px;
-}
-
-.dropdown-toggle {
-    padding: 9px 2px !important; 
-    display: flex;
-    flex-direction: row;
-    align-items: center; 
-    justify-content: center; 
-    height: auto; 
-    min-height: 50px; 
-    position: relative;
-}
-
 .profile-user-img { margin: 0 auto 10px; width: 100px; height: 100px; }
 
 .box-body table { width: 100%; overflow: auto;}
@@ -681,27 +625,27 @@ label[for="img"] {
     margin-bottom: 0.5rem;
 }
 
-.dropdown-menu {
+/* .dropdown-menu {
     background-color: #ffffff;
     border-radius: 10px !important;
     box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15); /* Sombra más suave y extendida */
-    width: 400px; /* Ancho mayor como pediste */
-    padding: 15px;
+    /* width: 400px; /* Ancho mayor como pediste */
+    /* padding: 15px;
     padding-top: 5px !important;
     padding-bottom: 8px !important;
     min-height: 130px; /* Altura mínima */
-    position: absolute; /* Para que salga fuera del header */
-    top: 120%; /* Debajo del header */
-    right: 20px; /* Alineado a la derecha */
-    z-index: 999; /* Sobre otros elementos */
-    border: 2px solid #e0e0e0; /* Borde más fino y elegante */
-    transition: transform 0.3s ease, opacity 0.3s ease; /* Animación suave */
-}
+    /* position: absolute; /* Para que salga fuera del header */
+    /* top: 120%; 
+    right: 20px; 
+    z-index: 999; 
+    border: 2px solid #e0e0e0; 
+    transition: transform 0.3s ease, opacity 0.3s ease;  */
+/* }  */
 
-.dropdown-menu.show {
-    opacity: 1; /* Se muestra al abrir */
-    transform: translateY(0); /* Se alinea correctamente */
-}
+/* .dropdown-menu.show {
+    opacity: 1; 
+    transform: translateY(0);
+}  */
 
 .user-menu-content {
     display: flex;
@@ -1270,63 +1214,6 @@ input:checked + .slider:before {
 }
 
 @media (max-width: 991px) {
-    .main-header {
-        height: 50px; /* Fixed height for the row */
-        padding: 10px;
-        display: flex;
-        flex-direction: row; /* Horizontal alignment */
-        align-items: center; /* Vertically center items */
-        justify-content: space-between; /* Space between logo, hamburger, and user image */
-        position: relative;
-    }
-
-    .main-header .logo {
-        position: relative;
-        right: 80px;
-    }
-    
-    .sidebar-toggle {
-        color: var(--text-color);
-        font-size: 1.5rem;
-        cursor: pointer;
-        position: relative;
-        left: 260px;
-    }
-
-    .sidebar-toggle:hover {
-        background-color: #59A5D8 !important;
-    }
-
-    .navbar-custom-menu {
-        position: relative;
-        left: 8px;
-        top: 2px;
-        margin-right: 0; /* Ensure it stays on the right */
-        padding: 0;
-    }
-
-    .navbar-custom-menu:hover {
-        background-color: #59A5D8 !important;
-    }
-
-    .navbar-custom-menu:hover .dropdown-toggle {
-        background-color: #59A5D8 !important;
-    }
-
-    .user-image {
-        margin: 10px;
-        transition: transform 0.3 ease;
-        position: relative; /* Ensure relative positioning */
-        top: 10px; /* Additional top offset */
-        right: 4px;
-        display: inline-block;
-        width: 35px;
-        height: 35px;
-    }
-
-    .user-image:hover{
-        background-color: #59A5D8 !important;
-    }
     
     .dropdown-toggle {
         padding: 5px !important;
@@ -1352,19 +1239,11 @@ input:checked + .slider:before {
         background-color: #e9ecef !important;
     }
 
-    .dropdown-menu {
-        background-color: white;
-        border-radius: 20px;
-        padding: 20px;
-        box-shadow: 0 7px 15px rgba(0, 0, 0, 0.2);
-        width: 300px;
-        min-height: 100px;
-        position: absolute;
-        top: 109%; /* Position below the row */
-        right: 0;
-        z-index: 999;
-        transform: translateY(0);
-        border: 3px solid;
+     .dropdown-menu {
+        position: absolute !important;
+        top: calc(100% + 8px) !important;
+        right: 0 !important;
+        width: 260px;
     }
 }
 /* Reducir tamaño de íconos en botones de acción */
@@ -1390,4 +1269,205 @@ input:checked + .slider:before {
 /* Opcional: más espacio entre botones */
 .action-buttons {
     gap: 4px !important;
+}
+
+/* --- QUE TU HEADER TENGA TU ESTILO SIN ROMPER ADMINLTE --- */
+
+.zpend-header .logo {
+    font-family: Poppins;
+    font-weight: 700;
+}
+
+.zpend-header .logo-mini,
+.zpend-header .logo-lg {
+    color: #fff;
+}
+
+.zpend-header .navbar {
+    display: flex;
+    align-items: center;
+}
+
+.user-image {
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+/* Avatar pequeño en el header */
+.user-image {
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid #3c8dbc; /* TU azul */
+}
+
+/* Dropdown moderno */
+.navbar-nav > .user-menu > .dropdown-menu {
+    padding: 0;
+    width: 260px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.12);
+    border: none;
+    overflow: hidden;
+}
+
+/* Header del dropdown */
+.navbar-nav > .user-menu > .dropdown-menu > .user-header {
+    background: linear-gradient(135deg, #3c8dbc, #6bc1ff);
+    color: white;
+    padding: 25px;
+    text-align: center;
+    border-bottom: none;
+}
+
+/* Avatar grande en el dropdown */
+.navbar-nav > .user-menu > .dropdown-menu > .user-header img {
+    width: 78px !important;
+    height: 78px !important;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid white;
+    margin-bottom: 10px;
+}
+
+/* Nombre y correo */
+.navbar-nav > .user-menu > .dropdown-menu > .user-header p {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.navbar-nav > .user-menu > .dropdown-menu > .user-header small {
+    display: block;
+    color: #eef7ff;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* Footer: botones */
+.navbar-nav > .user-menu > .dropdown-menu > .user-footer {
+    background: #f9fafc;
+    padding: 12px;
+    display: flex;
+    justify-content: space-between;
+}
+
+/* Botones de perfil y salir */
+.navbar-nav .user-footer .btn {
+    border-radius: 10px;
+    padding: 6px 14px;
+    font-size: 13px;
+    border: none;
+    transition: 0.2s;
+}
+
+.navbar-nav .user-footer .btn-default {
+    background: #eef2f5;
+    color: #333;
+}
+
+.navbar-nav .user-footer .btn-default:hover {
+    background: #e3e7eb;
+}
+
+.navbar-nav .user-footer .pull-right .btn-default {
+    background: #ffe5e5;
+    color: #c0392b !important;
+}
+
+.navbar-nav .user-footer .pull-right .btn-default:hover {
+    background: #ffd6d6;
+}
+
+/* ===================== DROPDOWN DE USUARIO MODERNO 2025 ===================== */
+.dropdown-user-modern {
+    width: 280px !important;
+    border: none !important;
+    border-radius: 16px !important;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15) !important;
+    margin-top: 8px !important;
+    animation: fadeInDrop 0.3s ease-out;
+}
+
+.dropdown-user-modern .user-header {
+    background: linear-gradient(135deg, #386FA4, #59A5D8) !important;
+    padding: 20px !important;
+    text-align: center;
+}
+
+.dropdown-user-modern .user-header img {
+    width: 90px !important;
+    height: 90px !important;
+    border: 4px solid rgba(255,255,255,0.3);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.dropdown-user-modern .user-header p {
+    margin: 10px 0 0 0;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.dropdown-user-modern .user-header small {
+    opacity: 0.9;
+    font-size: 13px;
+}
+
+.dropdown-user-modern .user-footer {
+    background-color: #f8f9fa !important;
+    padding: 15px !important;
+    border-top: 1px solid #e9ecef;
+}
+
+.dropdown-user-modern .btn {
+    border-radius: 12px !important;
+    font-weight: 500;
+    font-size: 14px;
+    padding: 8px 16px !important;
+}
+
+.dropdown-user-modern .btn-outline-light {
+    border-color: rgba(255,255,255,0.5) !important;
+    color: white !important;
+}
+
+.dropdown-user-modern .btn-outline-light:hover {
+    background: rgba(255,255,255,0.2) !important;
+}
+
+.dropdown-user-modern .btn-danger {
+    background: #e74c3c !important;
+    border: none !important;
+}
+
+.dropdown-user-modern .btn-danger:hover {
+    background: #c0392b !important;
+}
+
+/* Animación suave de aparición */
+@keyframes fadeInDrop {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Avatar pequeño en navbar */
+.user-menu .user-image {
+    width: 36px !important;
+    height: 36px !important;
+    border: 2px solid rgba(255,255,255,0.3);
+    transition: all 0.3s ease;
+}
+
+.user-menu .dropdown-toggle:hover .user-image {
+    border-color: white;
+    transform: scale(1.1);
 }
